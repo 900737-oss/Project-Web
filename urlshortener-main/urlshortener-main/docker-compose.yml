@@ -15,17 +15,31 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7.4-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   app1: &app
     build: .
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: urlshortener
       DB_USER: urlshortener
       DB_PASSWORD: urlshortener
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      URLSHORTENER_ADMIN_TOKEN: ${URLSHORTENER_ADMIN_TOKEN:-}
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness || exit 1"]
       interval: 10s
@@ -35,6 +49,10 @@ services:
 
   app2:
     <<: *app
+    # Serialize initial database schema initialization by the Modulith instances.
+    depends_on:
+      app1:
+        condition: service_healthy
 
   lb:
     image: nginx:1.27-alpine

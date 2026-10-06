@@ -1,6 +1,7 @@
 package es.unizar.urlshortener.links.adapters.persistence
 
 import es.unizar.urlshortener.links.domain.ShortUrl
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
@@ -13,6 +14,8 @@ class ShortUrlEntity(
     var hash: String,
     var target: String,
     var createdAt: Instant = Instant.now(),
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    var active: Boolean = true,
 )
 
 fun ShortUrl.toEntity() =
@@ -20,6 +23,7 @@ fun ShortUrl.toEntity() =
         hash = hash,
         target = target,
         createdAt = createdAt,
+        active = active,
     )
 
 fun ShortUrlEntity.toDomain() =
@@ -27,4 +31,5 @@ fun ShortUrlEntity.toDomain() =
         hash = hash,
         target = target,
         createdAt = createdAt,
+        active = active,
     )

@@ -34,6 +34,10 @@ Personal names and ownership belong in your local `TEAM.md` (git-ignored), not i
 
 | ID | Feature | Owner module | Weight | Event-coupled | ADR |
 | --- | --- | --- | --- | --- | --- |
-| — | *(add from 0004-…)* | | | | |
+| [0004](0004-link_preview_open_graph.md) | Link preview / Open Graph metadata | `preview` | 21 | `ShortUrlCreatedEvent`, `LinkPreviewFetchedEvent` | — |
+| [0005](0005-csv-upload.md) | CSV upload | `links` | 13 | `ShortUrlCreatedEvent` | — |
+| [0006](0006-redirect_cache_cross_replica.md) | Redirect cache with cross-replica invalidation | `links` | 21 | `ShortUrlUpdatedEvent` | [0004](../adr/0004-redis-redirect-cache.md) |
+| [0007](0007-qr_code.md) | QR code generation | `links` | 8 | No | — |
+| [0008](0008-async_click_ingestion.md) | Async click ingestion | `clicks` | 21 | `ClickLoggedEvent` | — |
 
-**Budget used:** 0 / 84 · **Grown:** 0 / ≥4 · **Event-coupled:** 0 / ≥2
+**Budget used:** 84 / 84 · **Grown:** 5 / ≥4 · **Event-coupled:** 4 / ≥2

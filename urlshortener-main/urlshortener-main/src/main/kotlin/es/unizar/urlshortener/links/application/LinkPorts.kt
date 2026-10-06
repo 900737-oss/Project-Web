@@ -10,6 +10,20 @@ interface ShortUrlStore {
     fun insert(shortUrl: ShortUrl): ShortUrl
 
     fun findByHash(hash: String): Optional<ShortUrl>
+
+    fun deactivate(hash: String): DeactivationOutcome
+}
+
+@SecondaryPort
+interface RedirectCache {
+    fun findTarget(hash: String): Optional<String>
+
+    fun putTarget(
+        hash: String,
+        target: String,
+    )
+
+    fun evict(hash: String)
 }
 
 @SecondaryPort
@@ -31,6 +45,12 @@ data class Redirection(
     val target: String,
 )
 
+enum class DeactivationOutcome {
+    DEACTIVATED,
+    ALREADY_DEACTIVATED,
+    NOT_FOUND,
+}
+
 class InvalidUrlException(
     url: String,
 ) : RuntimeException("[$url] is not a supported URL")
@@ -47,4 +67,9 @@ fun interface CreateShortUrl {
 @PrimaryPort
 fun interface RedirectShortUrl {
     fun redirect(hash: String): Redirection
+}
+
+@PrimaryPort
+fun interface DeactivateShortUrl {
+    fun deactivate(hash: String)
 }

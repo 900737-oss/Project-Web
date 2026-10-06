@@ -17,6 +17,10 @@ spring:
           enabled: true
 
 urlshortener:
+  admin:
+    token: ${URLSHORTENER_ADMIN_TOKEN:}
+  links:
+    redirect-cache-ttl: 1h
   analytics:
     processed-click-retention: 7d
     processed-click-prune-cron: "0 0 3 * * *"
