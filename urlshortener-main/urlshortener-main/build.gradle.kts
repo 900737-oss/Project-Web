@@ -73,7 +73,7 @@ tasks.withType<Test> {
     )
 }
 
-val modulithModules = listOf("links", "clicks", "analytics")
+val modulithModules = listOf("links", "clicks", "analytics", "preview")
 
 val jacocoModuleReports =
     modulithModules.map { module ->
