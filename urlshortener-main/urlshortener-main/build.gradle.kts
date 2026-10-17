@@ -42,6 +42,7 @@ dependencies {
     implementation(libs.jackson.module.kotlin)
     implementation(libs.commons.validator)
     implementation(libs.jsoup)
+    implementation(libs.resilience4j.circuitbreaker)
     implementation(libs.kotlin.logging)
     runtimeOnly(libs.kotlin.reflect)
     runtimeOnly(libs.hsqldb)

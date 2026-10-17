@@ -13,3 +13,14 @@ data class OpenGraphMetadata(
 fun interface OpenGraphParser {
     fun parse(html: String): OpenGraphMetadata
 }
+
+@SecondaryPort
+fun interface OpenGraphClient {
+    /** Downloads [target] and parses its Open Graph metadata. */
+    fun fetch(target: String): OpenGraphMetadata
+}
+
+class OpenGraphFetchException(
+    target: String,
+    cause: Throwable? = null,
+) : RuntimeException("Could not fetch $target", cause)
