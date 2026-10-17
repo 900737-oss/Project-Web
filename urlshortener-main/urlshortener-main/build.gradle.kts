@@ -41,6 +41,7 @@ dependencies {
     implementation(libs.jmolecules.hexagonal)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.commons.validator)
+    implementation(libs.jsoup)
     implementation(libs.kotlin.logging)
     runtimeOnly(libs.kotlin.reflect)
     runtimeOnly(libs.hsqldb)
