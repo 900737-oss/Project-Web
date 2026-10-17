@@ -32,6 +32,9 @@ interface LinkPreviewStore {
         hash: String,
         target: String,
     ): Boolean
+
+    /** Inserts or replaces the row for [LinkPreview.hash]. */
+    fun save(preview: LinkPreview)
 }
 
 @PrimaryPort
@@ -45,3 +48,12 @@ fun interface RecordPendingLinkPreview {
         target: String,
     ): Boolean
 }
+
+@PrimaryPort
+fun interface GetLinkPreview {
+    fun findByHash(hash: String): LinkPreview?
+}
+
+class PreviewNotFoundException(
+    val hash: String,
+) : RuntimeException("No preview is stored for $hash")

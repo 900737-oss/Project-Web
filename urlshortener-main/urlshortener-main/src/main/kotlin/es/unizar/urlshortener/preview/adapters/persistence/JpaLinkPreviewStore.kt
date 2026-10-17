@@ -25,4 +25,8 @@ class JpaLinkPreviewStore(
         )
         return true
     }
+
+    override fun save(preview: LinkPreview) {
+        repository.save(preview.toEntity())
+    }
 }

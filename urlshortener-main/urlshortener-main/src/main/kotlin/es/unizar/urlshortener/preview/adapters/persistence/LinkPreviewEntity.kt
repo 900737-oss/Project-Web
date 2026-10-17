@@ -39,3 +39,14 @@ fun LinkPreviewEntity.toDomain() =
         url = url,
         detail = detail,
     )
+
+fun LinkPreview.toEntity() =
+    LinkPreviewEntity(
+        hash = hash,
+        target = target,
+        status = status,
+        title = title,
+        image = image,
+        url = url,
+        detail = detail,
+    )

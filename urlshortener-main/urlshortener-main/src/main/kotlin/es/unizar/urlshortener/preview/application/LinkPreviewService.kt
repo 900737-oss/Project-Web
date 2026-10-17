@@ -12,7 +12,8 @@ private val log = KotlinLogging.logger {}
 class LinkPreviewService(
     private val store: LinkPreviewStore,
     private val events: ApplicationEventPublisher,
-) : RecordPendingLinkPreview {
+) : RecordPendingLinkPreview,
+    GetLinkPreview {
     @Transactional
     override fun onShortUrlCreated(
         hash: String,
@@ -23,4 +24,7 @@ class LinkPreviewService(
         log.info { "preview pending for $hash" }
         return true
     }
+
+    @Transactional(readOnly = true)
+    override fun findByHash(hash: String): LinkPreview? = store.findByHash(hash)
 }
