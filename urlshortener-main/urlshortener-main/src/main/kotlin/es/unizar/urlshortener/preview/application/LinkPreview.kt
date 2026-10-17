@@ -54,6 +54,18 @@ fun interface GetLinkPreview {
     fun findByHash(hash: String): LinkPreview?
 }
 
+@PrimaryPort
+fun interface FetchLinkPreview {
+    /**
+     * Downloads [target] and stores the result for [hash].
+     * A row that is already [LinkPreviewStatus.READY] is left unchanged.
+     */
+    fun fetch(
+        hash: String,
+        target: String,
+    )
+}
+
 class PreviewNotFoundException(
     val hash: String,
 ) : RuntimeException("No preview is stored for $hash")

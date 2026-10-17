@@ -12,8 +12,10 @@ private val log = KotlinLogging.logger {}
 class LinkPreviewService(
     private val store: LinkPreviewStore,
     private val events: ApplicationEventPublisher,
+    private val client: OpenGraphClient,
 ) : RecordPendingLinkPreview,
-    GetLinkPreview {
+    GetLinkPreview,
+    FetchLinkPreview {
     @Transactional
     override fun onShortUrlCreated(
         hash: String,
@@ -27,4 +29,34 @@ class LinkPreviewService(
 
     @Transactional(readOnly = true)
     override fun findByHash(hash: String): LinkPreview? = store.findByHash(hash)
+
+    @Transactional
+    override fun fetch(
+        hash: String,
+        target: String,
+    ) {
+        val current = store.findByHash(hash) ?: return
+        if (current.status == LinkPreviewStatus.READY) return
+        try {
+            val metadata = client.fetch(target)
+            store.save(
+                current.copy(
+                    status = LinkPreviewStatus.READY,
+                    title = metadata.title,
+                    image = metadata.image,
+                    url = metadata.url,
+                    detail = null,
+                ),
+            )
+            log.info { "preview ready for $hash" }
+        } catch (ex: OpenGraphFetchException) {
+            store.save(
+                current.copy(
+                    status = LinkPreviewStatus.FAILED,
+                    detail = ex.message,
+                ),
+            )
+            log.info { "preview failed for $hash" }
+        }
+    }
 }
