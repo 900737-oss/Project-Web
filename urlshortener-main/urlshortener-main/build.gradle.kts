@@ -38,6 +38,8 @@ dependencies {
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.modulith.starter.core)
     implementation(libs.modulith.starter.jdbc)
+    implementation(libs.modulith.events.amqp)
+    implementation(libs.spring.boot.starter.amqp)
     implementation(libs.jmolecules.hexagonal)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.commons.validator)
@@ -55,6 +57,7 @@ dependencies {
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.rabbitmq)
     testImplementation(libs.jmolecules.archunit)
 }
 

@@ -15,6 +15,12 @@ spring:
       jdbc:
         schema-initialization:
           enabled: true
+      externalization:
+        enabled: false
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
 
 urlshortener:
   analytics:
@@ -31,6 +37,9 @@ management:
     web:
       exposure:
         include: health,info,modulith
+  health:
+    rabbit:
+      enabled: false
 
 ---
 spring:
@@ -51,17 +60,27 @@ spring:
           time_zone: UTC
 
 ---
-# Externalize events via broker stub
+# Externalize preview requests through RabbitMQ.
 # Activate: --spring.profiles.active=docker,broker
 # Requires: docker compose --profile broker up
 spring:
   config:
     activate:
       on-profile: broker
-  # TODO: add spring-boot-starter-amqp and configure:
-  # rabbitmq:
-  #   host: rabbit
-  #   port: 5672
-  #   username: guest
-  #   password: guest
-  # See: https://docs.spring.io/spring-modulith/reference/events.html#externalization
+  modulith:
+    events:
+      externalization:
+        enabled: true
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:rabbit}
+    port: 5672
+    username: guest
+    password: guest
+    listener:
+      simple:
+        auto-startup: true
+
+management:
+  health:
+    rabbit:
+      enabled: true
