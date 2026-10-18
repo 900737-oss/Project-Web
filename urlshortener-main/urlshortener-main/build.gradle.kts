@@ -34,11 +34,13 @@ dependencies {
 
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.data.jpa)
-   implementation(libs.spring.boot.starter.data.redis)
+    implementation(libs.spring.boot.starter.data.redis)
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.spring.boot.starter.amqp)
     implementation(libs.modulith.starter.core)
     implementation(libs.modulith.starter.jdbc)
+    implementation(libs.modulith.events.amqp)
     implementation(libs.jmolecules.hexagonal)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.commons.validator)
@@ -54,6 +56,7 @@ dependencies {
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.rabbitmq)
     testImplementation(libs.jmolecules.archunit)
 }
 

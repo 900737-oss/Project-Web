@@ -30,6 +30,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbit:
+        condition: service_healthy
+        required: false
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_HOST: db
@@ -39,6 +42,8 @@ services:
       DB_PASSWORD: urlshortener
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_RABBITMQ_HOST: rabbit
+      SPRING_RABBITMQ_PORT: 5672
       URLSHORTENER_ADMIN_TOKEN: ${URLSHORTENER_ADMIN_TOKEN:-}
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness || exit 1"]

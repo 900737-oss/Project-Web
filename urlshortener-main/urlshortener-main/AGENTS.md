@@ -46,18 +46,19 @@ Each package below is a **Modulith application module**. Own your feature in one
 | --- | --- | --- | --- | --- |
 | `ShortUrlCreatedEvent` | `links` | `links` (`LinkService.create`) | After a short URL is persisted | `hash`, `target`, `createdAt` |
 | `ClickLoggedEvent` | `clicks` | `links` (`LinkService.redirect`) | After a successful redirect lookup | `hash`, `occurredAt`, `eventId` (consumers ignore repeats; [ADR 0002](docs/adr/0002-atomic-upserts.md)) |
+| `ShortUrlUpdatedEvent` | `links` | `links` (`LinkService.deactivate`) | After a short URL is deactivated | `hash`, `active`, `updatedAt` ([ADR 0004](docs/adr/0004-redis-redirect-cache.md)) |
 
 | Module | Publishes | Consumes |
 | --- | --- | --- |
-| `links` | `ShortUrlCreatedEvent`, `ClickLoggedEvent` | — |
+| `links` | `ShortUrlCreatedEvent`, `ClickLoggedEvent`, `ShortUrlUpdatedEvent` | `ShortUrlUpdatedEvent` for redirect-cache invalidation |
 | `clicks` | — | `ClickLoggedEvent` via `ClickRecorder` |
-| `analytics` | — | `ShortUrlCreatedEvent`, `ClickLoggedEvent` via `LinkStatsListener` |
+| `analytics` | — | `ShortUrlCreatedEvent`, `ClickLoggedEvent`, `ShortUrlUpdatedEvent` via `LinkStatsListener` |
 
 **Do not confuse:** `clicks` = permanent log (many rows per hash); `analytics` = one `LinkStats` row per hash. Sole exception: `analytics` keeps processed `ClickLoggedEvent` ids (no hash) for deduplication, pruned after `urlshortener.analytics.processed-click-retention` ([ADR 0002](docs/adr/0002-atomic-upserts.md)). Growing a feature? Put it in the module that owns that data, or add a new module + ADR.
 
 Each Modulith module is a **closed** application module with an internal hexagon:
 
-- **Public API** = base package only (integration events such as `ShortUrlCreatedEvent`, `ClickLoggedEvent`)
+- **Public API** = base package only (integration events such as `ShortUrlCreatedEvent`, `ClickLoggedEvent`, `ShortUrlUpdatedEvent`)
 - **Internal** = `domain` (where present), `application` (use cases + jMolecules ports), `adapters.*` (web, persistence, events, tech)
 - **Hexagon** = jMolecules stereotypes; verified via `ensureHexagonal(SEMI_STRICT)` in `ModularityTests`
 
@@ -69,7 +70,7 @@ Grown changes that affect modules, hexagon enforcement, events, or specialised t
 
 ## Grown (students)
 
-Technologies beyond baseline HTTP (Call-Return, Event-Based, Data Flow), each in a distinct grown feature. Web UI is not graded. Level-4 broker path (`--profile broker` starts the stub only; apps are not wired to it). **Feature cards** under [`docs/features/`](docs/features/README.md). Defence packet: filled feature cards, ADR log, and a live Compose demo.
+Technologies beyond baseline HTTP (Call-Return, Event-Based, Data Flow), each in a distinct grown feature. Web UI is not graded. Level 4 for [0006](docs/features/0006-redirect_cache_cross_replica.md) externalizes `ShortUrlUpdatedEvent` to RabbitMQ when `docker compose --profile broker up` is used. **Feature cards** under [`docs/features/`](docs/features/README.md). Defence packet: filled feature cards, ADR log, and a live Compose demo.
 
 ## Engineering quality ticks
 

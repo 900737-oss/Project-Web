@@ -23,28 +23,27 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 
 ### Acceptance criteria
 
-- [ ] …
-- [ ] …
+- [ ] `preview` listens to `ShortUrlCreatedEvent` and fetches Open Graph title, image and URL off the redirect path.
+- [ ] `GET /api/preview/{hash}` returns that metadata once the fetch has finished. An unknown hash returns 404.
+- [ ] The external fetch is protected by a circuit breaker. A failing target does not fail `GET /{hash}`.
+- [ ] The module publishes a new `LinkPreviewFetchedEvent` through the broker (`--profile broker`). Reusing only `ShortUrlCreatedEvent` does not meet weight 21.
 
 ### Scale evidence
 
-Fill this section with the evidence of the scalability of the feature.
+Not delivered in the 27 November prototype. The delivered Level 4 feature is [0006](0006-redirect_cache_cross_replica.md). The shared k6 run on 2026-10-17 had 0 failed checks.
 
 ### Qualities
 
-Fill **Assessed** with the grade you claim; **How to test** must falsify that number if it failed.
-
 | Quality | Assessed | How to test |
 | --- | --- | --- |
-| **Correctness** | 0 \| 5 | Acceptance tests for this feature |
-| **Scalability** | 0–3.5 | Scale evidence above. Not `ModularityTests`. |
-| **Engineering** | 0 \| 0.75 \| 1.5 | Hard gates: AI disclosure + `./gradlew check`. Then ADR + `ModularityTests`: both → **1.5**, one → **0.75**. |
+| **Correctness** | 0 | No preview endpoint or `LinkPreviewFetchedEvent` exists yet. |
+| **Scalability** | 0 | No preview-specific run. The product k6 run does not exercise this feature. |
+| **Engineering** | 0 | No ADR for this feature. AI disclosure is present, but the feature is not implemented, so `./gradlew check` does not cover it. |
 
-**Indicative total:** _ / 10
+**Indicative total:** 0 / 10
 
 ### AI disclosure
 
-- **Tools / skills:** …
-- **Used for:** …
-- **Human-reviewed:** …
-- Or: **No AI assistance** was used for this feature.
+- **Tools / skills:** Cursor agent.
+- **Used for:** writing these acceptance criteria. The feature itself is not implemented.
+- **Human-reviewed:** pending.

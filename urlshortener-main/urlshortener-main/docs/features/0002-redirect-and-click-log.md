@@ -24,24 +24,24 @@ Look up a short URL by hash, return **307** to the target, and append a permanen
 ### Acceptance criteria
 
 - [x] `GET /{hash}` → **307** with `Location` = target — `LinkFlowTests`
-- [ ] Unknown hash → **404** — handler exists; **no automated test yet**
+- [x] Unknown hash → **404** — `LinkFlowTests`
 - [x] Successful redirect leads to click side-effect — `LinkFlowTests` reaches `totalClicks=1` (via analytics)
 - [x] A redelivered `ClickLoggedEvent` (same `eventId`) is logged once — `RecordClickIdempotency(Postgres)Tests`
 
 ### Scale evidence
 
 - [x] Level 3 — in-process `ClickLoggedEvent` event
-- [ ] `docker compose --profile load run --rm k6` not run yet — concurrent `POST /api/link` and `GET /{hash}` through the load balancer. A failed run may lower the scalability score of every grown feature
+- [x] `docker compose --profile load run --rm k6` on 2026-10-17: 5 VUs, 30s, 640 iterations, 1280 checks, 0 failed, `http_req_failed` 0%. Exit code 0.
 
 ### Qualities (self-assessed)
 
 | Quality | Assessed | How to test |
 | --- | --- | --- |
-| **Correctness** | **0** | Redirect happy path green; claimed **404** untested → **0**. Re-test: unknown hash → 404; then **5**. |
-| **Scalability** | **0** | No run data — architecture tests are Engineering, not Scalability. |
+| **Correctness** | **5** | `LinkFlowTests`: 307 with `Location`, unknown hash → 404, and the click side-effect via stats. |
+| **Scalability** | **2** | k6 through the load balancer: 0 failed checks and 0% HTTP failures. |
 | **Engineering** | **1.5** | ADR `0001` + `ModularityTests` green; `./gradlew check` green; AI disclosure present. |
 
-**Indicative total:** 0 + 0 + 1.5 = **1.5 / 10**.
+**Indicative total:** 5 + 2 + 1.5 = **8.5 / 10**.
 
 ### AI disclosure
 

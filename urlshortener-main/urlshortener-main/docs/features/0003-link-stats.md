@@ -28,22 +28,22 @@ Maintain per-hash `LinkStats` (not the raw click log; the only other table is a 
 - [x] Concurrent clicks are all counted; a late `ShortUrlCreatedEvent` does not reset them — `LinkStatsConcurrencyTests`
 - [x] A redelivered click (same `eventId`), sequential or concurrent, is counted once — `LinkStatsConcurrencyTests`
 - [x] Processed click ids older than the configured retention are pruned daily — `ProcessedClickEventPruneTests`
-- [ ] Unknown hash → **404** on `GET /api/stats/{hash}` — handler returns 404; **no automated test yet**
+- [x] Unknown hash → **404** on `GET /api/stats/{hash}` — `LinkFlowTests`
 
 ### Scale evidence
 
 - [x] Level 3 — in-process events from `links` and `clicks`
-- [ ] `docker compose --profile load run --rm k6` not run yet — concurrent `POST /api/link` and `GET /{hash}` through the load balancer. A failed run may lower the scalability score of every grown feature
+- [x] `docker compose --profile load run --rm k6` on 2026-10-17: 5 VUs, 30s, 640 iterations, 1280 checks, 0 failed, `http_req_failed` 0%. Exit code 0.
 
 ### Qualities (self-assessed)
 
 | Quality | Assessed | How to test |
 | --- | --- | --- |
-| **Correctness** | **0** | Happy path stats=1 automated; claimed **404** untested → **0**. Re-test: `GET /api/stats/missing` → 404; then **5**. |
-| **Scalability** | **0** | No k6 run yet. Every project is tested with `docker compose --profile load run --rm k6`. |
+| **Correctness** | **5** | `LinkFlowTests` reaches `totalClicks=1` and `GET /api/stats/missing-hash` returns 404. |
+| **Scalability** | **2** | k6 through the load balancer: 0 failed checks and 0% HTTP failures. |
 | **Engineering** | **1.5** | ADR `0001` + `ModularityTests` green; `./gradlew check` green; AI disclosure present. |
 
-**Indicative total:** 0 + 0 + 1.5 = **1.5 / 10**.
+**Indicative total:** 5 + 2 + 1.5 = **8.5 / 10**.
 
 ### AI disclosure
 

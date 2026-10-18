@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>0006 — Entrega y nivel 4</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Calibri, sans-serif;
+    color: #1c2430;
+    font-size: 11pt;
+    line-height: 1.45;
+    margin: 0;
+  }
+  h1 { font-size: 20pt; line-height: 1.2; margin: 0 0 4px; color: #10233f; }
+  h2 { font-size: 14pt; margin: 22px 0 8px; color: #16365c; border-bottom: 1px solid #d5deea; padding-bottom: 3px; page-break-after: avoid; }
+  h3 { font-size: 12pt; margin: 14px 0 6px; color: #1e4b7a; page-break-after: avoid; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 4px 0 10px; padding-left: 18px; }
+  li { margin: 2px 0; }
+  code, .path { font-family: Consolas, "Cascadia Mono", monospace; font-size: 9.5pt; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; page-break-inside: avoid; }
+  th, td { border: 1px solid #d5deea; padding: 5px 7px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; font-weight: 650; }
+  .meta { color: #4b5b70; margin-bottom: 14px; }
+  .callout { background: #f4f7fb; border-left: 4px solid #1e4b7a; padding: 8px 12px; margin: 10px 0 14px; }
+  .ok { color: #0d6b3a; font-weight: 650; }
+  .no { color: #8a2a2a; font-weight: 650; }
+</style>
+</head>
+<body>
+
+<h1>Característica 0006: cambios para completar la entrega y llegar al nivel 4</h1>
+<p class="meta">Redirect cache with cross-replica invalidation · módulo propietario <code>links</code> · peso 21 · 17 de octubre de 2026</p>
+
+<div class="callout">
+  El peso 21 exige nivel 4: un evento nuevo del equipo, que cruce de módulo, externalizado a un broker durable. Reutilizar <code>ShortUrlCreatedEvent</code> o <code>ClickLoggedEvent</code> no llega a ese nivel. Redis Pub/Sub tampoco: si una réplica no está escuchando, el mensaje se pierde.
+</div>
+
+<h2>1. Qué había que cumplir</h2>
+<p>La entrega de la característica 0006 y la prueba de concepto del 23 de octubre pedían, juntas, esto:</p>
+<ul>
+  <li>Los módulos ya existentes siguen conectados.</li>
+  <li>Una característica nueva publica un evento y otro módulo lo consume. Ese cruce tiene que verse en un test.</li>
+  <li>Hay un ADR de la característica a la que pertenece el evento.</li>
+  <li><code>docker compose up</code> arranca sin errores.</li>
+  <li>La entrega a Moodle es un zip del proyecto.</li>
+  <li>Al ser peso 21, el evento tiene que ser de nivel 4: broker externo (<code>--profile broker</code>), paralelo, aislado por módulo y durable.</li>
+</ul>
+<p>El README del proyecto lo fija así: el nivel 3 es un evento Modulith en proceso (<code>@ApplicationModuleListener</code>) y el nivel 4 es un broker externo. <code>--profile broker</code> solo arrancaba RabbitMQ; las aplicaciones no estaban conectadas.</p>
+
+<h2>2. Punto de partida</h2>
+<p>La primera iteración de la caché ya hacía una parte de la característica:</p>
+<ul>
+  <li><code>GET /{hash}</code> guarda destino en caché. Los hash desconocidos o inactivos no se guardan.</li>
+  <li>En Docker la caché es Redis, con TTL <code>urlshortener.links.redirect-cache-ttl</code>. En local es una caché en memoria.</li>
+  <li><code>POST /api/link/{hash}/deactivate</code> exige <code>X-Admin-Token</code>, persiste la baja y es idempotente.</li>
+  <li><code>links</code> publicaba <code>ShortUrlUpdatedEvent</code>, pero lo consumían solo listeners del propio módulo para borrar la caché.</li>
+  <li>El ADR 0004 ya existía y rechazaba el broker externo.</li>
+</ul>
+<p>Eso no bastaba para la entrega ni para el nivel 4. El evento no cruzaba de módulo, <code>./gradlew check</code> estaba en rojo por el estilo de <code>build.gradle.kts</code>, y la invalidación entre réplicas dependía de Redis Pub/Sub, que es transitorio.</p>
+
+<h2>3. Por qué cada cambio</h2>
+
+<h3>3.1. Que el evento cruce de módulo</h3>
+<p><code>analytics</code> es quien posee el modelo de lectura por hash. Si la baja se quedaba dentro de <code>links</code>, <code>GET /api/stats/{hash}</code> seguía describiendo un enlace desactivado como activo. La caché no se movió de módulo: sigue siendo de <code>links</code>. El acoplamiento permitido es el evento.</p>
+<ul>
+  <li><code>LinkStats</code> gana el campo <code>active</code>. El total de clics no se toca.</li>
+  <li><code>LinkStatsListener</code> sigue escuchando el alta y el clic en proceso. La baja, sin broker, la atiende <code>InProcessShortUrlUpdatedListener</code>.</li>
+  <li><code>GET /api/stats/{hash}</code> devuelve <code>active</code>.</li>
+  <li><code>LinkDeactivationTests</code> espera a que, tras desactivar, las estadísticas sigan con los mismos clics y pasen a <code>active: false</code>. También comprueba que un hash desconocido o inactivo no queda en caché.</li>
+</ul>
+<p>Eso cubre la prueba de concepto: evento nuevo, publicado por <code>links</code>, consumido por <code>analytics</code>, con test y con el ADR 0004.</p>
+
+<h3>3.2. Que la invalidación de la caché compartida no dependa de una carrera</h3>
+<p><code>RedisShortUrlUpdatedListener</code> borra la clave <code>urlshortener:redirect:{hash}</code> en el mismo callback posterior al commit y, además, publica en Redis Pub/Sub. La clave es compartida, así que el borrado lo ven las dos réplicas antes de que vuelva la respuesta HTTP. Pub/Sub repite el borrado por si otra réplica vuelve a escribir la clave mientras el evento viaja. Este canal se mantiene para <code>docker compose up</code> sin broker. No es el transporte de nivel 4.</p>
+
+<h3>3.3. Nivel 4: broker externo, durable y aislado por módulo</h3>
+<p>Con el perfil <code>broker</code>, <code>ShortUrlUpdatedEvent</code> lleva <code>@Externalized("urlshortener.short-url-updated::links.ShortUrlUpdatedEvent")</code>. Spring Modulith lo envía a RabbitMQ después del commit. Si la publicación falla, el registro JDBC de Modulith la reintenta. Los mensajes se marcan persistentes y el exchange es durable.</p>
+<p>Cada módulo tiene su propia cola durable, enlazada a ese exchange. Las dos réplicas consumen cada cola. Eso es el aislamiento de módulos y el paralelismo que pide el nivel 4:</p>
+<table>
+  <tr><th>Cola durable</th><th>Módulo</th><th>Qué hace al recibir el evento</th></tr>
+  <tr><td><code>urlshortener.links.redirect-invalidation</code></td><td><code>links</code></td><td>Borra la entrada de la caché de redirect.</td></tr>
+  <tr><td><code>urlshortener.analytics.short-url-updated</code></td><td><code>analytics</code></td><td>Pone <code>LinkStats.active</code> en false sin cambiar el total de clics.</td></tr>
+</table>
+<p>Si una réplica está caída, el mensaje espera en la cola. Redis Pub/Sub no puede hacer eso. Por eso el ADR deja de rechazar el broker y lo adopta como transporte del evento. Redis sigue siendo el almacén de la caché, no el bus del evento.</p>
+<p>Sin el perfil <code>broker</code>, la externalización está apagada y <code>analytics</code> consume la baja en proceso. Así los tests locales y <code>docker compose up</code> no necesitan RabbitMQ. Con el perfil <code>broker</code>, la baja de estadísticas solo entra por la cola: el test puede demostrar que el broker es quien entrega el evento.</p>
+<p>El arranque lo activa solo. El <code>Dockerfile</code> usa el perfil <code>docker</code> y, si el nombre <code>rabbit</code> resuelve en la red de Compose, añade <code>broker</code>. <code>docker compose --profile broker up</code> crea RabbitMQ. Las aplicaciones esperan a que esté sano cuando ese servicio existe; si no se pide el perfil, la dependencia es opcional y el producto de siempre sigue arrancando.</p>
+
+<h3>3.4. Puerta de ingeniería y papeles de la entrega</h3>
+<ul>
+  <li>Se corrigió la indentación de la dependencia Redis en <code>build.gradle.kts</code>. Era lo que hacía fallar ktlint y, con ello, <code>./gradlew check</code>.</li>
+  <li>El paquete de caché queda marcado como adaptador secundario, igual que persistencia y validación.</li>
+  <li>El ADR 0004, la ficha 0006 y <code>AGENTS.md</code> describen el consumidor de <code>analytics</code> y la externalización a RabbitMQ.</li>
+  <li>La ficha declara el uso de Copilot y del agente de Cursor. Sin esa divulgación, la nota de ingeniería de la característica es 0.</li>
+</ul>
+
+<h2>4. Ficheros tocados</h2>
+<table>
+  <tr><th>Fichero</th><th>Para qué</th></tr>
+  <tr><td><code>links/ShortUrlUpdatedEvent.kt</code></td><td>Anota el evento para externalizarlo al exchange y la routing key.</td></tr>
+  <tr><td><code>links/adapters/broker/RedirectInvalidationBroker.kt</code></td><td>Exchange, cola durable de <code>links</code>, mensajes persistentes y consumidor que borra la caché.</td></tr>
+  <tr><td><code>analytics/adapters/broker/ShortUrlUpdatedBrokerListener.kt</code></td><td>Cola durable de <code>analytics</code> y consumidor que marca el enlace inactivo.</td></tr>
+  <tr><td><code>analytics/adapters/events/LinkStatsListener.kt</code></td><td>Alta y clic siguen en proceso. La baja en proceso solo existe si no hay perfil <code>broker</code>.</td></tr>
+  <tr><td><code>analytics</code> application, persistence y web</td><td>Campo <code>active</code>, upsert que no reactiva un enlace ya dado de baja, y respuesta de <code>/api/stats</code>.</td></tr>
+  <tr><td><code>links/adapters/cache/RedisShortUrlUpdatedListener.kt</code></td><td>Borrado inmediato de la clave compartida, además de Pub/Sub.</td></tr>
+  <tr><td><code>links/adapters/cache/package-info.java</code></td><td>El paquete de caché queda como adaptador secundario.</td></tr>
+  <tr><td><code>application.yaml</code></td><td>Externalización apagada por defecto y encendida, en serie, con el perfil <code>broker</code>.</td></tr>
+  <tr><td><code>build.gradle.kts</code> y <code>libs.versions.toml</code></td><td>AMQP, <code>spring-modulith-events-amqp</code> y Testcontainers de RabbitMQ. Indentación que rompía ktlint.</td></tr>
+  <tr><td><code>Dockerfile</code> y <code>docker-compose.yml</code></td><td>El perfil <code>broker</code> se activa cuando RabbitMQ está en la red. La dependencia es opcional.</td></tr>
+  <tr><td><code>LinkDeactivationTests.kt</code></td><td>Token, idempotencia, caché y consumo de <code>analytics</code> sin broker.</td></tr>
+  <tr><td><code>ShortUrlUpdatedBrokerTests.kt</code> y <code>RabbitContainer.kt</code></td><td>Con RabbitMQ real, las estadísticas solo pasan a inactivas cuando la cola entrega el evento.</td></tr>
+  <tr><td><code>docs/adr/0004-redis-redirect-cache.md</code></td><td>Decisión de externalizar el evento y de no usar Pub/Sub como transporte de nivel 4.</td></tr>
+  <tr><td><code>docs/features/0006-redirect_cache_cross_replica.md</code></td><td>Criterios, evidencia de las dos réplicas y del broker, y divulgación de IA.</td></tr>
+  <tr><td><code>AGENTS.md</code></td><td>El mapa de eventos incluye <code>ShortUrlUpdatedEvent</code> y el camino de nivel 4.</td></tr>
+</table>
+
+<h2>5. Qué se ejecutó</h2>
+<table>
+  <tr><th>Comprobación</th><th>Resultado</th></tr>
+  <tr><td><code>./gradlew check</code></td><td class="ok">Verde. Incluye ktlint, detekt, tests y JaCoCo.</td></tr>
+  <tr><td><code>LinkDeactivationTests</code></td><td class="ok">401 sin token, baja idempotente, 404, caché vacía para hash desconocido o inactivo, y <code>active: false</code> en estadísticas.</td></tr>
+  <tr><td><code>ShortUrlUpdatedBrokerTests</code></td><td class="ok">Con perfil <code>broker</code> y RabbitMQ, <code>analytics</code> recibe la baja por la cola.</td></tr>
+  <tr><td><code>docker compose up</code></td><td class="ok"><code>db</code>, <code>redis</code>, <code>app1</code>, <code>app2</code> y <code>lb</code> sanos. Tras desactivar, las dos réplicas responden 404 y la clave Redis desaparece.</td></tr>
+  <tr><td><code>docker compose --profile broker up</code></td><td class="ok">Perfiles activos <code>docker</code> y <code>broker</code>. Dos colas durables, cada una con un consumidor por réplica. Mismo resultado de 404 y <code>active: false</code>.</td></tr>
+</table>
+<p>En la pasada con broker, las colas quedaron así: <code>urlshortener.links.redirect-invalidation</code> y <code>urlshortener.analytics.short-url-updated</code>, las dos durables, con 2 consumidores y 0 mensajes pendientes después de procesar la baja.</p>
+
+<h2>6. Cómo queda cubierta la rúbrica</h2>
+<table>
+  <tr><th>Requisito</th><th>Dónde se cumple</th></tr>
+  <tr><td>Evento nuevo del equipo</td><td><code>ShortUrlUpdatedEvent</code>. No se reutiliza un evento de las características de partida.</td></tr>
+  <tr><td>Cruza de módulo</td><td><code>links</code> publica. <code>analytics</code> consume. <code>LinkDeactivationTests</code>.</td></tr>
+  <tr><td>ADR</td><td><code>docs/adr/0004-redis-redirect-cache.md</code>.</td></tr>
+  <tr><td>Broker externo</td><td>RabbitMQ del perfil <code>broker</code>, vía Spring Modulith AMQP.</td></tr>
+  <tr><td>Durable</td><td>Exchange y colas durables, mensajes persistentes, reintento del registro de publicación.</td></tr>
+  <tr><td>Aislado por módulo</td><td>Una cola por módulo. <code>links</code> no llama a <code>analytics</code>.</td></tr>
+  <tr><td>Paralelo</td><td>Las dos réplicas consumen las dos colas a la vez.</td></tr>
+  <tr><td><code>docker compose up</code></td><td>Sigue arrancando sin RabbitMQ.</td></tr>
+  <tr><td><code>./gradlew check</code> y divulgación de IA</td><td>Verdes en la ficha. Sin las dos, la ingeniería de la característica vale 0.</td></tr>
+  <tr><td>Zip de Moodle</td><td><code>C:\Users\juano\Project-Web\urlshortener-0006.zip</code>. Hay que subirlo en Moodle; desde el repositorio no se envía.</td></tr>
+</table>
+
+<h2>7. Comandos de la demo</h2>
+<p>Producto sin broker, el que pide que Compose arranque:</p>
+<p><code>docker compose up --build</code></p>
+<p>Nivel 4, con el evento en RabbitMQ:</p>
+<p><code>$env:URLSHORTENER_ADMIN_TOKEN = "demo-token"</code><br>
+<code>docker compose --profile broker up --build</code></p>
+<p>El token no está en el repositorio. Si queda vacío, desactivar responde 401. Para parar la pila: <code>docker compose --profile broker down</code> dentro de <code>urlshortener-main\urlshortener-main</code>.</p>
+
+</body>
+</html>

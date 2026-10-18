@@ -24,24 +24,24 @@ Accept a target URL, validate it, mint a new base62 code from `short_url_seq`, p
 ### Acceptance criteria
 
 - [x] `POST /api/link` with form `url=` returns **201** and JSON `hash` + location — covered by `LinkFlowTests`
-- [ ] Invalid URL → **400**
+- [x] Invalid URL → **400** — `LinkFlowTests`
 - [x] Publishes `ShortUrlCreatedEvent` — implied by stats bootstrap in `LinkFlowTests` + `LinkStatsListener`
 - [x] Same URL (also concurrently) mints a distinct code of at least 4 characters — `CreateShortUrlConcurrencyTests`
 
 ### Scale evidence
 
 - [x] Level 3 — in-process events via `ShortUrlCreatedEvent`
-- [ ] `docker compose --profile load run --rm k6` not run yet — concurrent `POST /api/link` and `GET /{hash}` through the load balancer. A failed run may lower the scalability score of every grown feature
+- [x] `docker compose --profile load run --rm k6` on 2026-10-17: 5 VUs, 30s, 640 iterations, 1280 checks, 0 failed, `http_req_failed` 0%. Exit code 0.
 
 ### Qualities (self-assessed)
 
 | Quality | Assessed | How to test |
 | --- | --- | --- |
-| **Correctness** | **0** | No test for invalid URL. |
-| **Scalability** | **0** | No run data available. |
+| **Correctness** | **5** | `LinkFlowTests` covers 201, the created event through stats, and invalid URL → 400. |
+| **Scalability** | **2** | k6 through the load balancer: 0 failed checks and 0% HTTP failures. |
 | **Engineering** | **1.5** | ADR + `ModularityTests` green; `./gradlew check` green; AI disclosure present. |
 
-**Indicative total:** 0 + 0 + 1.5 = **1.5 / 10**.
+**Indicative total:** 5 + 2 + 1.5 = **8.5 / 10**.
 
 ### AI disclosure
 
