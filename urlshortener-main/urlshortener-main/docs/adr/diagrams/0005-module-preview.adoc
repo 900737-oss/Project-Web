@@ -1,0 +1,7 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`es.unizar.urlshortener.preview`
+|Events listened to
+|* `e.u.u.l.ShortUrlCreatedEvent` (async)
+|===
