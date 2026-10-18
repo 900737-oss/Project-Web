@@ -23,7 +23,7 @@ class LinkPreviewRequestedConsumerTests {
     fun `the request event is externalized to the preview queue`() {
         val externalized = LinkPreviewRequestedEvent::class.java.getAnnotation(Externalized::class.java)
 
-        assertEquals(LINK_PREVIEW_REQUESTED_QUEUE, externalized?.value)
+        assertEquals(LINK_PREVIEW_REQUESTED_TARGET, externalized?.value)
     }
 
     private class RecordingFetch : FetchLinkPreview {
