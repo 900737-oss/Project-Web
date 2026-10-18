@@ -18,18 +18,19 @@ import java.util.concurrent.atomic.AtomicInteger
 class OpenGraphClientTests {
     @Test
     fun `fetches open graph metadata from a local page`() {
-        val server = server { exchange ->
-            val body =
-                """
-                <html><head>
-                  <meta property="og:title" content="Story">
-                  <meta property="og:image" content="https://cdn.example/story.jpg">
-                  <meta property="og:url" content="https://example.com/story">
-                </head></html>
-                """.trimIndent().toByteArray()
-            exchange.sendResponseHeaders(200, body.size.toLong())
-            exchange.responseBody.use { it.write(body) }
-        }
+        val server =
+            server { exchange ->
+                val body =
+                    """
+                    <html><head>
+                      <meta property="og:title" content="Story">
+                      <meta property="og:image" content="https://cdn.example/story.jpg">
+                      <meta property="og:url" content="https://example.com/story">
+                    </head></html>
+                    """.trimIndent().toByteArray()
+                exchange.sendResponseHeaders(200, body.size.toLong())
+                exchange.responseBody.use { it.write(body) }
+            }
         try {
             val metadata = client().fetch(server.url)
 
@@ -44,11 +45,12 @@ class OpenGraphClientTests {
     @Test
     fun `an open circuit stops calling the target`() {
         val hits = AtomicInteger()
-        val server = server {
-            hits.incrementAndGet()
-            it.sendResponseHeaders(500, -1)
-            it.close()
-        }
+        val server =
+            server {
+                hits.incrementAndGet()
+                it.sendResponseHeaders(500, -1)
+                it.close()
+            }
         try {
             val openGraph = client(minimumCalls = 3)
             repeat(3) {

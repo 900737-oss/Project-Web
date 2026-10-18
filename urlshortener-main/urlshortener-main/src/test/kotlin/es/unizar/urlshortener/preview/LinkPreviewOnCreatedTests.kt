@@ -18,6 +18,7 @@ import org.springframework.modulith.test.PublishedEventsExtension
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import java.time.Duration
+import java.util.UUID
 
 @SpringBootTest
 @ExtendWith(PublishedEventsExtension::class)
@@ -35,31 +36,28 @@ class LinkPreviewOnCreatedTests {
     lateinit var recordPendingLinkPreview: RecordPendingLinkPreview
 
     @Test
-    fun `a created short url stores one pending preview and publishes one request`(
-        published: PublishedEvents,
-    ) {
-        publish(ShortUrlCreatedEvent(hash = "preview-created", target = "https://example.com/story"))
+    fun `a created short url stores one pending preview`() {
+        val hash = "preview-created-${UUID.randomUUID()}"
+        publish(ShortUrlCreatedEvent(hash = hash, target = "https://example.com/story"))
 
         await().atMost(Duration.ofSeconds(5)).until {
-            store.findByHash("preview-created")?.status == LinkPreviewStatus.PENDING
+            store.findByHash(hash)?.status == LinkPreviewStatus.PENDING
         }
 
-        val requests = requestsFor(published, "preview-created")
-        assertEquals(1, requests.size)
-        assertEquals("https://example.com/story", requests.single().target)
-        assertEquals("https://example.com/story", store.findByHash("preview-created")?.target)
+        assertEquals("https://example.com/story", store.findByHash(hash)?.target)
     }
 
     @Test
-    fun `a repeated creation does not store or publish again`(
-        published: PublishedEvents,
-    ) {
-        assertTrue(recordPendingLinkPreview.onShortUrlCreated("preview-repeat", "https://example.com/story"))
-        assertFalse(recordPendingLinkPreview.onShortUrlCreated("preview-repeat", "https://example.com/other"))
+    fun `recording a pending preview publishes one request and ignores repeats`(published: PublishedEvents) {
+        val hash = "preview-repeat-${UUID.randomUUID()}"
+        assertTrue(recordPendingLinkPreview.onShortUrlCreated(hash, "https://example.com/story"))
+        assertFalse(recordPendingLinkPreview.onShortUrlCreated(hash, "https://example.com/other"))
 
-        assertEquals("https://example.com/story", store.findByHash("preview-repeat")?.target)
-        assertEquals(LinkPreviewStatus.PENDING, store.findByHash("preview-repeat")?.status)
-        assertEquals(1, requestsFor(published, "preview-repeat").size)
+        assertEquals("https://example.com/story", store.findByHash(hash)?.target)
+        assertEquals(LinkPreviewStatus.PENDING, store.findByHash(hash)?.status)
+        val requests = published.ofType(LinkPreviewRequestedEvent::class.java).filter { it.hash == hash }
+        assertEquals(1, requests.size)
+        assertEquals("https://example.com/story", requests.single().target)
     }
 
     private fun publish(event: ShortUrlCreatedEvent) {
@@ -67,9 +65,4 @@ class LinkPreviewOnCreatedTests {
             publisher.publishEvent(event)
         }
     }
-
-    private fun requestsFor(
-        published: PublishedEvents,
-        hash: String,
-    ) = published.ofType(LinkPreviewRequestedEvent::class.java).filter { it.hash == hash }
 }

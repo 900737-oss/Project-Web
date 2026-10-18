@@ -8,11 +8,13 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import org.springframework.stereotype.Component
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.net.http.HttpTimeoutException
 import java.time.Duration
 
 @Component
@@ -34,26 +36,36 @@ class HttpOpenGraphClient(
             throw OpenGraphFetchException(target, ex)
         }
 
-    private fun download(target: String): OpenGraphMetadata {
+    private fun download(target: String): OpenGraphMetadata =
         try {
-            val request =
-                HttpRequest
-                    .newBuilder(URI.create(target))
-                    .timeout(READ_TIMEOUT)
-                    .GET()
-                    .build()
-            val response = http.send(request, HttpResponse.BodyHandlers.ofInputStream())
-            if (response.statusCode() >= 400) {
-                response.body().close()
-                throw OpenGraphFetchException(target)
-            }
-            val html = response.body().use { readLimited(target, it) }
-            return parser.parse(html)
+            requestMetadata(target)
         } catch (ex: OpenGraphFetchException) {
             throw ex
-        } catch (ex: Exception) {
-            throw OpenGraphFetchException(target, ex)
+        } catch (ex: HttpTimeoutException) {
+            fail(target, ex)
+        } catch (ex: IOException) {
+            fail(target, ex)
+        } catch (ex: InterruptedException) {
+            Thread.currentThread().interrupt()
+            fail(target, ex)
+        } catch (ex: IllegalArgumentException) {
+            fail(target, ex)
         }
+
+    private fun requestMetadata(target: String): OpenGraphMetadata {
+        val request =
+            HttpRequest
+                .newBuilder(URI.create(target))
+                .timeout(READ_TIMEOUT)
+                .GET()
+                .build()
+        val response = http.send(request, HttpResponse.BodyHandlers.ofInputStream())
+        if (response.statusCode() >= 400) {
+            response.body().close()
+            fail(target)
+        }
+        val html = response.body().use { readLimited(target, it) }
+        return parser.parse(html)
     }
 
     private fun readLimited(
@@ -67,11 +79,16 @@ class HttpOpenGraphClient(
             val read = body.read(chunk)
             if (read < 0) break
             total += read
-            if (total > MAX_BODY_BYTES) throw OpenGraphFetchException(target)
+            if (total > MAX_BODY_BYTES) fail(target)
             buffer.write(chunk, 0, read)
         }
         return buffer.toString(Charsets.UTF_8)
     }
+
+    private fun fail(
+        target: String,
+        cause: Exception? = null,
+    ): Nothing = throw OpenGraphFetchException(target, cause)
 
     private companion object {
         val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(2)

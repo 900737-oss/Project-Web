@@ -21,8 +21,7 @@ class PreviewBrokerConfiguration {
     fun previewRequestedQueue(): Queue = QueueBuilder.durable(LINK_PREVIEW_REQUESTED_QUEUE).build()
 
     @Bean
-    fun previewRequestedExchange(): DirectExchange =
-        ExchangeBuilder.directExchange(LINK_PREVIEW_REQUESTED_QUEUE).durable(true).build()
+    fun previewRequestedExchange(): DirectExchange = ExchangeBuilder.directExchange(LINK_PREVIEW_REQUESTED_QUEUE).durable(true).build()
 
     @Bean
     fun previewRequestedBinding(

@@ -37,7 +37,7 @@ class LinkPreviewBrokerTests {
 
     @Test
     fun `a request published straight to the broker marks the pending row ready`() {
-        val hash = "preview-from-broker"
+        val hash = "preview-from-broker-${UUID.randomUUID()}"
         val server = openGraphPage()
         try {
             store.insertPending(hash, server.url)
