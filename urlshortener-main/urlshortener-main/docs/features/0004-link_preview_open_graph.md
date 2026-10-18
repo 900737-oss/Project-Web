@@ -23,34 +23,36 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 
 ### Acceptance criteria
 
-- [ ] `POST /api/link` still returns **201** with `url` and `hash`, and leaves one `link_preview` row in `PENDING` for that hash.
-- [ ] Delivering the same `ShortUrlCreatedEvent` again does not insert a second row and does not publish a second `LinkPreviewRequestedEvent`.
-- [ ] `GET /api/preview/{hash}` returns **404** Problem Details (`type`, `title`, `status`, `detail`, `instance`) when no row exists.
-- [ ] `GET /api/preview/{hash}` returns **200** with `status` `PENDING`, `READY`, or `FAILED` when that row exists. `READY` includes `title`, `image`, and `url`.
-- [ ] HTML that contains `og:title`, `og:image`, and `og:url` fills those fields. HTML without Open Graph tags uses the document `<title>`.
-- [ ] Repeated failures of the target site set the row to `FAILED` and the circuit breaker stops calling that target.
-- [ ] A `LinkPreviewRequestedEvent` that arrives through RabbitMQ, and was not created in this JVM (app1 or app2, the replicas), moves the matching `PENDING` row to `READY`.
-- [ ] With RabbitMQ down, `POST /api/link` still returns **201**.
+- [x] `POST /api/link` still returns **201** with `url` and `hash`, and leaves one `link_preview` row in `PENDING` for that hash. — `LinkPreviewOnCreatedTests`, Compose without Rabbit.
+- [x] Delivering the same `ShortUrlCreatedEvent` again does not insert a second row and does not publish a second `LinkPreviewRequestedEvent`. — `LinkPreviewOnCreatedTests`.
+- [x] `GET /api/preview/{hash}` returns **404** Problem Details (`type`, `title`, `status`, `detail`, `instance`) when no row exists. — `LinkPreviewHttpTests`.
+- [x] `GET /api/preview/{hash}` returns **200** with `status` `PENDING`, `READY`, or `FAILED` when that row exists. `READY` includes `title`, `image`, and `url`. — `LinkPreviewHttpTests`, Compose broker run.
+- [x] HTML that contains `og:title`, `og:image`, and `og:url` fills those fields. HTML without Open Graph tags uses the document `<title>`. — `OpenGraphParserTests`.
+- [x] Repeated failures of the target site set the row to `FAILED` and the circuit breaker stops calling that target. — `OpenGraphClientTests`, `FetchLinkPreviewTests`.
+- [x] A `LinkPreviewRequestedEvent` that arrives through RabbitMQ, and was not created in this JVM (app1 or app2, the replicas), moves the matching `PENDING` row to `READY`. — `LinkPreviewBrokerTests`; Compose with broker: `app1` pending, `app2` ready for hash `1003`.
+- [x] With RabbitMQ down, `POST /api/link` still returns **201**. — `docker compose up` (no rabbit service); hash `1000` stayed `PENDING`.
 
 ### Scale evidence
 
-Fill this section with the evidence of the scalability of the feature.
+Level 4: a new event (`LinkPreviewRequestedEvent`) is externalized to RabbitMQ after commit. Evidence collected on 2026-10-18:
+
+1. `docker compose up --build` started `db`, `redis`, `app1`, `app2`, and `lb` healthy **without** Rabbit. Both apps used only the `docker` profile. `POST /api/link` returned **201** (`hash` `1000`); `GET /api/preview/1000` stayed `PENDING`.
+2. `docker compose --profile broker up --build` started Rabbit and both apps with profiles `docker,broker`. Apps connected to `rabbit:5672` as user `urlshortener`.
+3. `LinkPreviewBrokerTests` publishes JSON straight to the broker (not via `publishEvent`); the consumer moves a seeded `PENDING` row to `READY`.
+4. Compose broker demo: `POST` of a reachable HTTP target produced `PENDING` on `app1` and `preview ready` on `app2` (`hash` `1003`, status `READY`, title `Compose Story`). An unreachable HTTPS target (`example.com`) produced `FAILED` with detail `Could not fetch …`, which still proves broker delivery.
 
 ### Qualities
 
-Fill **Assessed** with the grade you claim; **How to test** must falsify that number if it failed.
-
 | Quality | Assessed | How to test |
 | --- | --- | --- |
-| **Correctness** | 0 \| 5 | Acceptance tests for this feature |
-| **Scalability** | 0–3.5 | Scale evidence above. Not `ModularityTests`. |
-| **Engineering** | 0 \| 0.75 \| 1.5 | Hard gates: AI disclosure + `./gradlew check`. Then ADR + `ModularityTests`: both → **1.5**, one → **0.75**. |
+| **Correctness** | 5 | The eight acceptance criteria above; `./gradlew test --tests es.unizar.urlshortener.preview.*`. |
+| **Scalability** | 3.5 | Scale evidence: new event externalized to Rabbit; cross-replica Compose run; `LinkPreviewBrokerTests`. |
+| **Engineering** | 1.5 | AI disclosure below; ADR 0005; `ModularityTests`. Final gate: `./gradlew check` on this branch. |
 
-**Indicative total:** _ / 10
+**Indicative total:** 10 / 10
 
 ### AI disclosure
 
-- **Tools / skills:** …
-- **Used for:** …
-- **Human-reviewed:** …
-- Or: **No AI assistance** was used for this feature.
+- **Tools / skills:** Cursor (Composer agent).
+- **Used for:** design of the `preview` module and broker path, implementation, tests, Compose wiring and a part of documentation.
+- **Human-reviewed:** Yes — each commit was reviewed and commands were run by the feature owner before continuing. Additionally, logs and any specific errors that arose were manually verified.

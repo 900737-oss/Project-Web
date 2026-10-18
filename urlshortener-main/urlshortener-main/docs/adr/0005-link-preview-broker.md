@@ -25,7 +25,7 @@ The feature weight is 21, so the fetch has to cross JVM boundaries and survive a
 - `preview` never imports `links` internals. Both replicas see the row because they share Postgres.
 - Local `bootRun` and the default Compose stack keep working without RabbitMQ. Previews stay incomplete until the broker profile is up.
 - The feature card name `LinkPreviewFetchedEvent` described the result. The durable message is the request, so the event that crosses the broker is `LinkPreviewRequestedEvent`. The card is updated in a later commit so the defence text matches this ADR.
-- Evidence below stays unchecked until the module, the RabbitMQ test, and the Compose run exist.
+- Evidence below records the branch tests and the Compose broker run from 2026-10-18.
 
 ## Alternatives considered
 
@@ -38,6 +38,6 @@ The feature weight is 21, so the fetch has to cross JVM boundaries and survive a
 
 ## Evidence (defence)
 
-- [ ] Code / PR link
-- [ ] Test or command that proves the decision (`./gradlew test`, k6, `docker compose …`)
-- [ ] Diagram or Modulith doc snippet (`build/spring-modulith-docs/`) if structure changed
+- [x] Code on branch `feature/0004-link-preview` (module `preview`, ADR 0005, Compose broker wiring).
+- [x] `./gradlew test --tests es.unizar.urlshortener.preview.*` including `LinkPreviewBrokerTests`; `docker compose up` without Rabbit still returns **201**; `docker compose --profile broker up` completes previews across replicas.
+- [ ] Diagram or Modulith doc snippet (`build/spring-modulith-docs/`) if structure changed — optional; structure is covered by `ModularityTests` and this ADR.
