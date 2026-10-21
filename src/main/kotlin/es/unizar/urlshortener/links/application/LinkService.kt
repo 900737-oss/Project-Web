@@ -1,6 +1,7 @@
 package es.unizar.urlshortener.links.application
 
 import es.unizar.urlshortener.clicks.ClickLoggedEvent
+import es.unizar.urlshortener.links.LinkPreviewRequestedEvent
 import es.unizar.urlshortener.links.ShortUrlCreatedEvent
 import es.unizar.urlshortener.links.ShortUrlUpdatedEvent
 import es.unizar.urlshortener.links.domain.ShortUrl
@@ -28,6 +29,7 @@ class LinkService(
         }
         val stored = store.insert(ShortUrl(hash = codes.next(), target = trimmed))
         events.publishEvent(ShortUrlCreatedEvent(hash = stored.hash, target = stored.target))
+        events.publishEvent(LinkPreviewRequestedEvent(hash = stored.hash, target = stored.target))
         return CreatedShortUrl(hash = stored.hash, target = stored.target)
     }
 

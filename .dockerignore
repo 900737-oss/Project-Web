@@ -1,0 +1,9 @@
+.git
+.gradle
+.idea
+.kotlin
+.vscode
+**/build
+build
+TEAM.md
+*.iml

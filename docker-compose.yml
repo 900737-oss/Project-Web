@@ -26,7 +26,7 @@ services:
   app1: &app
     build: .
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_PROFILES_ACTIVE: docker,broker
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: urlshortener
@@ -42,7 +42,6 @@ services:
         condition: service_healthy
       rabbit:
         condition: service_healthy
-        required: false
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness || exit 1"]
       interval: 10s
@@ -53,13 +52,11 @@ services:
   app2:
     <<: *app
     # Serialize initial database schema initialization by the Modulith instances.
-    # required: false keeps `docker compose up` working when the broker profile is off.
     depends_on:
       app1:
         condition: service_healthy
       rabbit:
         condition: service_healthy
-        required: false
 
   lb:
     image: nginx:1.27-alpine
@@ -73,10 +70,8 @@ services:
     volumes:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
-  # Started only by `docker compose --profile broker up`.
-  # The default user "guest" accepts connections from localhost only, so replicas use another user.
+  # Enabled in the default product stack; replicas share durable event delivery.
   rabbit:
-    profiles: ["broker"]
     image: rabbitmq:3.13-management-alpine
     environment:
       RABBITMQ_DEFAULT_USER: urlshortener

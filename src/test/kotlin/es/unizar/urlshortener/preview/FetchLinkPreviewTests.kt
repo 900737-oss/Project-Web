@@ -11,7 +11,6 @@ import es.unizar.urlshortener.preview.application.OpenGraphMetadata
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
-import org.springframework.context.ApplicationEventPublisher
 
 class FetchLinkPreviewTests {
     private val store = MemoryLinkPreviewStore()
@@ -19,9 +18,6 @@ class FetchLinkPreviewTests {
     private val fetch: FetchLinkPreview =
         LinkPreviewService(
             store,
-            object : ApplicationEventPublisher {
-                override fun publishEvent(event: Any) = Unit
-            },
             client,
         )
 

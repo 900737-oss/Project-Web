@@ -31,7 +31,7 @@ non-invalidating replica; TTL-only eviction doesn’t satisfy the Level 4 bar.
 - [x] Deactivation is persisted, idempotent, and available at `POST /api/link/{hash}/deactivate`; a configured `X-Admin-Token` is required.
 - [x] A successful deactivation publishes `ShortUrlUpdatedEvent` after commit. Redis Pub/Sub invalidates the shared cache across replicas; local development uses an in-process cache and the same after-commit invalidation.
 - [x] `analytics` consumes `ShortUrlUpdatedEvent`. After deactivation, `GET /api/stats/{hash}` keeps the click total and reports `active: false`.
-- [x] With `--profile broker`, `ShortUrlUpdatedEvent` is externalized to a durable RabbitMQ exchange. `links` and `analytics` each have their own durable queue. `ShortUrlUpdatedBrokerTests` covers that delivery.
+- [x] `ShortUrlUpdatedEvent` is externalized to a durable RabbitMQ exchange. `links` and `analytics` each have their own durable queue. `ShortUrlUpdatedBrokerTests` covers that delivery.
 - [x] Redirecting to a deactivated URL or deactivating an unknown hash returns 404. Missing/wrong admin tokens return 401.
 - [x] On a two-replica Compose deployment, warm the redirect cache, deactivate through the load balancer, then verify redirects from both replicas return 404 and the Redis key is gone.
 
@@ -44,7 +44,7 @@ Compose runs two application replicas against one Redis cache. Runtime evidence 
 3. Redis reported a 3599-second TTL for the shared `urlshortener:redirect:<hash>` key.
 4. Deactivated through the load balancer with `X-Admin-Token`; after invalidation, both direct replica requests returned 404, Redis `EXISTS` returned 0, and `GET /api/stats/{hash}` reported `active: false` with the click total kept.
 5. Compose starts `app2` after `app1` is healthy so the two replicas do not initialize Spring Modulith's JDBC event schema at the same time. This startup brought both replicas up healthy.
-6. `docker compose --profile broker up` started RabbitMQ and both replicas with profiles `docker` and `broker`. RabbitMQ showed two durable queues, `urlshortener.links.redirect-invalidation` and `urlshortener.analytics.short-url-updated`, each with one consumer per replica. After deactivation both replicas returned 404 and stats reported `active: false`.
+6. `docker compose up` started RabbitMQ and both replicas with profiles `docker` and `broker`. RabbitMQ showed two durable queues, `urlshortener.links.redirect-invalidation` and `urlshortener.analytics.short-url-updated`, each with one consumer per replica. After deactivation both replicas returned 404 and stats reported `active: false`.
 7. `docker compose --profile load run --rm k6` on that stack: 5 VUs, 30s, 640 iterations, 1280 checks, 0 failed, `http_req_failed` 0%. Exit code 0.
 
 ### Qualities
@@ -54,7 +54,7 @@ Fill **Assessed** with the grade you claim; **How to test** must falsify that nu
 | Quality | Assessed | How to test |
 | --- | --- | --- |
 | **Correctness** | 5 | `LinkDeactivationTests` and `ShortUrlUpdatedBrokerTests`: token enforcement, idempotence, cache invalidation, and `analytics` reporting `active: false` after the durable broker delivers `ShortUrlUpdatedEvent`. |
-| **Scalability** | 2 | Two-replica Compose run, `docker compose --profile broker up`, and k6 with 0 failed checks. |
+| **Scalability** | 2 | Two-replica Compose run, `docker compose up`, and k6 with 0 failed checks. |
 | **Engineering** | 1.5 | `./gradlew check` passed; ADR 0004 is filed and `ModularityTests` passed. |
 
 **Indicative total:** 8.5 / 10

@@ -2,9 +2,9 @@
 
 ## Decision (required by 2 October)
 
-**Owner module**: `preview` | **Event-coupled**: Y (Listens to `ShortUrlCreatedEvent` and publishes the new event `LinkPreviewRequestedEvent` through the broker)
+**Owner module**: `preview` | **Event-coupled**: Y (`links` publishes the new `LinkPreviewRequestedEvent`; `preview` consumes it through RabbitMQ)
 
-Fetches Open Graph title, image, and URL from the target asynchronously after creation. On `ShortUrlCreatedEvent`, `preview` stores a `PENDING` row and publishes `LinkPreviewRequestedEvent` (`hash`, `target`, `eventId`). A RabbitMQ consumer fetches the page and updates that row to `READY` or `FAILED`. Exposes preview metadata on `GET /api/preview/{hash}`. Uses a circuit breaker for external fetches. The broker path is `docker compose --profile broker`.
+Fetches Open Graph title, image, and URL from the target asynchronously after creation. On `ShortUrlCreatedEvent`, `preview` stores a `PENDING` row. `links` publishes the new `LinkPreviewRequestedEvent` (`hash`, `target`, `eventId`) after storing the short URL; RabbitMQ delivers it to a consumer in `preview`, which fetches the page and updates the row to `READY` or `FAILED`. Exposes preview metadata on `GET /api/preview/{hash}`. Uses a circuit breaker for external fetches. The broker is included in the default Compose stack.
 
 **Traps**: synchronous fetch on the redirect path adds latency; external sites may block HEAD/GET from server IPs; Open Graph parsing is fragile (Jsoup needs HTTPS + redirect following).
 
@@ -24,23 +24,22 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 
 ### Acceptance criteria
 
-- [x] `POST /api/link` still returns **201** with `url` and `hash`, and leaves one `link_preview` row in `PENDING` for that hash. — `LinkPreviewOnCreatedTests`, Compose without Rabbit.
-- [x] Delivering the same `ShortUrlCreatedEvent` again does not insert a second row and does not publish a second `LinkPreviewRequestedEvent`. — `LinkPreviewOnCreatedTests`.
+- [x] `POST /api/link` still returns **201** with `url` and `hash`; the `ShortUrlCreatedEvent` listener stores one `link_preview` row in `PENDING`. — `LinkPreviewOnCreatedTests`.
+- [x] Delivering the same `ShortUrlCreatedEvent` again does not insert a second pending row; the new request event is published by `links` when it creates the short URL. — `LinkPreviewOnCreatedTests`.
 - [x] `GET /api/preview/{hash}` returns **404** Problem Details (`type`, `title`, `status`, `detail`, `instance`) when no row exists. — `LinkPreviewHttpTests`.
 - [x] `GET /api/preview/{hash}` returns **200** with `status` `PENDING`, `READY`, or `FAILED` when that row exists. `READY` includes `title`, `image`, and `url`. — `LinkPreviewHttpTests`, Compose broker run.
 - [x] HTML that contains `og:title`, `og:image`, and `og:url` fills those fields. HTML without Open Graph tags uses the document `<title>`. — `OpenGraphParserTests`.
 - [x] Repeated failures of the target site set the row to `FAILED` and the circuit breaker stops calling that target. — `OpenGraphClientTests`, `FetchLinkPreviewTests`.
-- [x] A `LinkPreviewRequestedEvent` that arrives through RabbitMQ, and was not created in this JVM (app1 or app2, the replicas), moves the matching `PENDING` row to `READY`. — `LinkPreviewBrokerTests`; Compose with broker: `app1` pending, `app2` ready for hash `1003`.
-- [x] With RabbitMQ down, `POST /api/link` still returns **201**. — `docker compose up` (no rabbit service); hash `1000` stayed `PENDING`.
+- [x] A `LinkPreviewRequestedEvent` published by `links` is delivered through RabbitMQ to `preview`, whose consumer fetches and stores metadata. — `LinkPreviewBrokerTests`.
+- [ ] `docker compose up --build` starts all services from a clean checkout. The current Codespace Docker bridge timed out between containers during verification.
 
 ### Scale evidence
 
-Level 4: a new event (`LinkPreviewRequestedEvent`) is externalized to RabbitMQ after commit. Evidence collected on 2026-10-18:
+Level 4: `links` publishes a new event (`LinkPreviewRequestedEvent`) consumed by `preview` through RabbitMQ after commit. The test below verifies the full event path; the historical Compose run predates the current event ownership change.
 
-1. `docker compose up --build` started `db`, `redis`, `app1`, `app2`, and `lb` healthy **without** Rabbit. Both apps used only the `docker` profile. `POST /api/link` returned **201** (`hash` `1000`); `GET /api/preview/1000` stayed `PENDING`.
-2. `docker compose --profile broker up --build` started Rabbit and both apps with profiles `docker,broker`. Apps connected to `rabbit:5672` as user `urlshortener`.
-3. `LinkPreviewBrokerTests` publishes JSON straight to the broker (not via `publishEvent`); the consumer moves a seeded `PENDING` row to `READY`.
-4. Compose broker demo: `POST` of a reachable HTTP target produced `PENDING` on `app1` and `preview ready` on `app2` (`hash` `1003`, status `READY`, title `Compose Story`). An unreachable HTTPS target (`example.com`) produced `FAILED` with detail `Could not fetch …`, which still proves broker delivery.
+1. `LinkPreviewBrokerTests` creates a URL through `CreateShortUrl`, verifies `links` publishes the event, and waits for the Rabbit consumer in `preview` to store `READY` metadata.
+2. A previous Compose run demonstrated cross-replica delivery, but used the earlier event publisher and optional broker profile; it is not current runtime evidence for the new default stack.
+3. Current clean-checkout Compose startup remains unverified in this Codespace because bridge TCP connections to the database timed out.
 
 ### Qualities
 
