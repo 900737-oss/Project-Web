@@ -8,7 +8,7 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 
 **Traps**: synchronous fetch on the redirect path adds latency; external sites may block HEAD/GET from server IPs; Open Graph parsing is fragile (Jsoup needs HTTPS + redirect following).
 
-**Technology hints**: Jsoup; Resilience4j CircuitBreaker; listen to `ShortUrlCreatedEvent` → store `PENDING` → publish `LinkPreviewRequestedEvent` via the broker → consumer fetches and updates the row. See [ADR 0005](../adr/0005-link-preview-broker.md).
+**Technology hints**: Jsoup; Resilience4j CircuitBreaker; listen to `ShortUrlCreatedEvent` → store `PENDING` → publish `LinkPreviewRequestedEvent` via the broker → consumer fetches and updates the row. See [ADR 0004](../adr/0004-link-preview-broker.md).
 
 ---
 
@@ -19,7 +19,7 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 
 ## Later (after the 2 October agreement)
 
-- **ADR:** [docs/adr/0005-link-preview-broker.md](../adr/0005-link-preview-broker.md)
+- **ADR:** [docs/adr/0004-link-preview-broker.md](../adr/0004-link-preview-broker.md)
 
 ### Acceptance criteria
 
