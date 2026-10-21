@@ -38,6 +38,6 @@ Personal names and ownership belong in your local `TEAM.md` (git-ignored), not i
 | [0005](0005-csv-upload.md) | CSV upload | `links` | 13 | `ShortUrlCreatedEvent` | — |
 | [0006](0006-redirect_cache_cross_replica.md) | Redirect cache with cross-replica invalidation | `links` | 21 | `ShortUrlUpdatedEvent` | [0006](../adr/0006-redis-redirect-cache.md) |
 | [0007](0007-qr_code.md) | QR code generation | `links` | 8 | No | — |
-| [0008](0008-async_click_ingestion.md) | Async click ingestion | `clicks` | 21 | `ClickLoggedEvent` | — |
+| [0008](0008-async_click_ingestion.md) | Async click ingestion | `clicks` | 21 | `ClickLoggedEvent` | [0006](../adr/0006-click-logged-broker.md) |
 
 **Budget used:** 84 / 84 · **Grown:** 5 / ≥4 · **Event-coupled:** 4 / ≥2
