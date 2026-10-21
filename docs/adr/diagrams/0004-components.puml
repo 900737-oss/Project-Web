@@ -1,0 +1,35 @@
+@startuml
+title <size:24>Application</size>
+
+set separator none
+top to bottom direction
+
+<style>
+  root {
+    BackgroundColor: #ffffff
+    FontColor: #444444
+  }
+</style>
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+System_Boundary("Application_boundary", "Application", $tags="") {
+  Container_Boundary("Application.Application_boundary", "Application", $tags="") {
+    Component(Application.Application.Clicks, "Clicks", $techn="Module", $descr="", $tags="", $link="")
+    Component(Application.Application.Links, "Links", $techn="Module", $descr="", $tags="", $link="")
+    Component(Application.Application.Analytics, "Analytics", $techn="Module", $descr="", $tags="", $link="")
+    Component(Application.Application.Preview, "Preview", $techn="Module", $descr="", $tags="", $link="")
+  }
+
+}
+
+Rel(Application.Application.Preview, Application.Application.Links, "listens to", $techn="", $tags="", $link="")
+Rel(Application.Application.Links, Application.Application.Clicks, "depends on", $techn="", $tags="", $link="")
+Rel(Application.Application.Analytics, Application.Application.Clicks, "listens to", $techn="", $tags="", $link="")
+Rel(Application.Application.Analytics, Application.Application.Links, "listens to", $techn="", $tags="", $link="")
+
+SHOW_LEGEND(true)
+hide stereotypes
+@enduml

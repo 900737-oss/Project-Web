@@ -3,6 +3,8 @@ kotlin = "2.4.0"
 springBoot = "4.1.0"
 springModulith = "2.0.7"
 commonsValidator = "1.9.0"
+jsoup = "1.18.1"
+resilience4j = "2.3.0"
 kotlinLogging = "7.0.3"
 archunit = "1.5.0"
 jmolecules = "2025.0.2"
@@ -23,14 +25,16 @@ spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-st
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
-spring-boot-starter-amqp = { module = "org.springframework.boot:spring-boot-starter-amqp" }
 spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
+spring-boot-starter-amqp = { module = "org.springframework.boot:spring-boot-starter-amqp" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
 jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
 hsqldb = { module = "org.hsqldb:hsqldb" }
 postgresql = { module = "org.postgresql:postgresql" }
 commons-validator = { module = "commons-validator:commons-validator", version.ref = "commonsValidator" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+resilience4j-circuitbreaker = { module = "io.github.resilience4j:resilience4j-circuitbreaker", version.ref = "resilience4j" }
 kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlinLogging" }
 modulith-bom = { module = "org.springframework.modulith:spring-modulith-bom", version.ref = "springModulith" }
 modulith-starter-core = { module = "org.springframework.modulith:spring-modulith-starter-core" }

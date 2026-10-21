@@ -41,9 +41,12 @@ dependencies {
     implementation(libs.modulith.starter.core)
     implementation(libs.modulith.starter.jdbc)
     implementation(libs.modulith.events.amqp)
+    implementation(libs.spring.boot.starter.amqp)
     implementation(libs.jmolecules.hexagonal)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.commons.validator)
+    implementation(libs.jsoup)
+    implementation(libs.resilience4j.circuitbreaker)
     implementation(libs.kotlin.logging)
     runtimeOnly(libs.kotlin.reflect)
     runtimeOnly(libs.hsqldb)
@@ -77,7 +80,7 @@ tasks.withType<Test> {
     )
 }
 
-val modulithModules = listOf("links", "clicks", "analytics")
+val modulithModules = listOf("links", "clicks", "analytics", "preview")
 
 val jacocoModuleReports =
     modulithModules.map { module ->

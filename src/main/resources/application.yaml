@@ -17,6 +17,10 @@ spring:
           enabled: true
       externalization:
         enabled: false
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
 
 urlshortener:
   admin:
@@ -28,9 +32,6 @@ urlshortener:
     processed-click-prune-cron: "0 0 3 * * *"
 
 management:
-  health:
-    rabbit:
-      enabled: false
   endpoint:
     health:
       probes:
@@ -40,6 +41,9 @@ management:
     web:
       exposure:
         include: health,info,modulith
+  health:
+    rabbit:
+      enabled: false
 
 ---
 spring:
@@ -60,7 +64,7 @@ spring:
           time_zone: UTC
 
 ---
-# Level 4: durable externalization of ShortUrlUpdatedEvent.
+# Externalize module events through RabbitMQ.
 # Activate: docker compose --profile broker up
 spring:
   config:
@@ -72,8 +76,13 @@ spring:
         enabled: true
         serialize-externalization: true
   rabbitmq:
-    username: guest
-    password: guest
+    host: ${SPRING_RABBITMQ_HOST:rabbit}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:urlshortener}
+    password: ${SPRING_RABBITMQ_PASSWORD:urlshortener}
+    listener:
+      simple:
+        auto-startup: true
 management:
   health:
     rabbit:

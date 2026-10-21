@@ -5,5 +5,6 @@ RUN apt-get update \
 WORKDIR /app
 COPY build/libs/urlshortener.jar app.jar
 EXPOSE 8080
-# docker compose --profile broker adds the rabbit host. The shell then enables the broker profile.
-ENTRYPOINT ["sh", "-c", "profiles=docker; if getent hosts rabbit >/dev/null 2>&1; then profiles=docker,broker; fi; exec java -jar /app/app.jar --spring.profiles.active=$profiles"]
+# `docker compose up` has no rabbit service, so the app stays on the docker profile.
+# `docker compose --profile broker up` publishes the name "rabbit"; that adds the broker profile.
+ENTRYPOINT ["sh", "-c", "profiles=\"${SPRING_PROFILES_ACTIVE:-docker}\"; if getent hosts rabbit >/dev/null 2>&1; then case \",$profiles,\" in *,broker,*) ;; *) profiles=\"$profiles,broker\";; esac; fi; exec java -jar /app/app.jar --spring.profiles.active=\"$profiles\""]
