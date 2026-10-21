@@ -23,6 +23,10 @@ spring:
         auto-startup: false
 
 urlshortener:
+  admin:
+    token: ${URLSHORTENER_ADMIN_TOKEN:}
+  links:
+    redirect-cache-ttl: 1h
   analytics:
     processed-click-retention: 7d
     processed-click-prune-cron: "0 0 3 * * *"
@@ -60,9 +64,8 @@ spring:
           time_zone: UTC
 
 ---
-# Externalize preview requests through RabbitMQ.
-# Activate: --spring.profiles.active=docker,broker
-# Requires: docker compose --profile broker up
+# Externalize module events through RabbitMQ.
+# Activate: docker compose --profile broker up
 spring:
   config:
     activate:
@@ -71,6 +74,7 @@ spring:
     events:
       externalization:
         enabled: true
+        serialize-externalization: true
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:rabbit}
     port: 5672
@@ -79,7 +83,6 @@ spring:
     listener:
       simple:
         auto-startup: true
-
 management:
   health:
     rabbit:

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController
 data class LinkStatsResponse(
     val hash: String,
     val totalClicks: Long,
+    val active: Boolean,
 )
 
 @RestController
@@ -27,4 +28,4 @@ class AnalyticsController(
     }
 }
 
-private fun LinkStats.toResponse() = LinkStatsResponse(hash = hash, totalClicks = totalClicks)
+private fun LinkStats.toResponse() = LinkStatsResponse(hash = hash, totalClicks = totalClicks, active = active)

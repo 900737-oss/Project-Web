@@ -51,4 +51,20 @@ class LinkFlowTests {
         }
         assert(ok) { "link stats did not reach totalClicks=1 within timeout" }
     }
+
+    @Test
+    fun `invalid url is rejected`() {
+        mockMvc
+            .perform(
+                post("/api/link")
+                    .contentType(APPLICATION_FORM_URLENCODED)
+                    .param("url", "not a url"),
+            ).andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `unknown hash is not found`() {
+        mockMvc.perform(get("/missing-hash")).andExpect(status().isNotFound)
+        mockMvc.perform(get("/api/stats/missing-hash")).andExpect(status().isNotFound)
+    }
 }

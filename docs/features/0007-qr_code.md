@@ -26,28 +26,27 @@ Spring StreamingResponseBody for large images.
 
 ### Acceptance criteria
 
-- [ ] …
-- [ ] …
+- [ ] `GET /{hash}` with `Accept: image/png` returns a PNG QR code for that short URL.
+- [ ] The same request without that `Accept` header still returns 307 to the target.
+- [ ] An unknown hash returns 404 for both the redirect and the QR response.
+- [ ] QR generation is not executed on the ordinary redirect path.
 
 ### Scale evidence
 
-Fill this section with the evidence of the scalability of the feature.
+Not delivered in the 27 November prototype. The delivered Level 4 feature is [0006](0006-redirect_cache_cross_replica.md). The shared k6 run on 2026-10-17 had 0 failed checks. This feature is weight 8, so it does not need an event.
 
 ### Qualities
 
-Fill **Assessed** with the grade you claim; **How to test** must falsify that number if it failed.
-
 | Quality | Assessed | How to test |
 | --- | --- | --- |
-| **Correctness** | 0 \| 5 | Acceptance tests for this feature |
-| **Scalability** | 0–3.5 | Scale evidence above. Not `ModularityTests`. |
-| **Engineering** | 0 \| 0.75 \| 1.5 | Hard gates: AI disclosure + `./gradlew check`. Then ADR + `ModularityTests`: both → **1.5**, one → **0.75**. |
+| **Correctness** | 0 | No QR response exists yet. |
+| **Scalability** | 0 | No QR-specific run. The product k6 run does not exercise this feature. |
+| **Engineering** | 0 | No ADR is required until a library choice is locked. The feature is not implemented. |
 
-**Indicative total:** _ / 10
+**Indicative total:** 0 / 10
 
 ### AI disclosure
 
-- **Tools / skills:** …
-- **Used for:** …
-- **Human-reviewed:** …
-- Or: **No AI assistance** was used for this feature.
+- **Tools / skills:** Cursor agent.
+- **Used for:** writing these acceptance criteria. The feature itself is not implemented.
+- **Human-reviewed:** pending.

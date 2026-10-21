@@ -30,28 +30,27 @@ or Kafka with--profile broker; @TransactionalEventListener(AFTER_COMMIT).
 
 ### Acceptance criteria
 
-- [ ] …
-- [ ] …
+- [ ] `ClickLoggedEvent` is externalized to the broker (`--profile broker`) after the redirect transaction commits.
+- [ ] `GET /{hash}` still returns 307 when the broker is down.
+- [ ] A repeated `eventId` is ingested once by the click log and by the stats counter.
+- [ ] Weight 21 is not met by the in-process listener alone. The event must travel through the durable broker.
 
 ### Scale evidence
 
-Fill this section with the evidence of the scalability of the feature.
+Not delivered in the 27 November prototype. The delivered Level 4 feature is [0006](0006-redirect_cache_cross_replica.md). The shared k6 run on 2026-10-17 had 0 failed checks.
 
 ### Qualities
 
-Fill **Assessed** with the grade you claim; **How to test** must falsify that number if it failed.
-
 | Quality | Assessed | How to test |
 | --- | --- | --- |
-| **Correctness** | 0 \| 5 | Acceptance tests for this feature |
-| **Scalability** | 0–3.5 | Scale evidence above. Not `ModularityTests`. |
-| **Engineering** | 0 \| 0.75 \| 1.5 | Hard gates: AI disclosure + `./gradlew check`. Then ADR + `ModularityTests`: both → **1.5**, one → **0.75**. |
+| **Correctness** | 0 | Click ingestion is still the in-process seed listener. |
+| **Scalability** | 0 | No broker-down or externalized-click run for this feature. |
+| **Engineering** | 0 | No ADR for externalizing `ClickLoggedEvent`. The feature is not implemented. |
 
-**Indicative total:** _ / 10
+**Indicative total:** 0 / 10
 
 ### AI disclosure
 
-- **Tools / skills:** …
-- **Used for:** …
-- **Human-reviewed:** …
-- Or: **No AI assistance** was used for this feature.
+- **Tools / skills:** Cursor agent.
+- **Used for:** writing these acceptance criteria. The feature itself is not implemented.
+- **Human-reviewed:** pending.

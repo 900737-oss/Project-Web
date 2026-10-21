@@ -26,5 +26,12 @@ class JpaLinkStatsStore(
         repository.upsertIncrement(hash)
     }
 
+    override fun updateActive(
+        hash: String,
+        active: Boolean,
+    ) {
+        repository.updateActive(hash, active)
+    }
+
     override fun deleteProcessedClicksBefore(cutoff: Instant): Int = processed.deleteProcessedBefore(cutoff)
 }

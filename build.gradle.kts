@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.spring.boot.starter.data.redis)
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.spring.boot.starter.amqp)
     implementation(libs.modulith.starter.core)
     implementation(libs.modulith.starter.jdbc)
     implementation(libs.modulith.events.amqp)

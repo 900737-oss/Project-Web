@@ -2,6 +2,7 @@ package es.unizar.urlshortener.analytics.application
 
 import es.unizar.urlshortener.clicks.ClickLoggedEvent
 import es.unizar.urlshortener.links.ShortUrlCreatedEvent
+import es.unizar.urlshortener.links.ShortUrlUpdatedEvent
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -25,6 +26,12 @@ class LinkStatsService(
     @Transactional
     override fun onClick(event: ClickLoggedEvent) {
         store.incrementClicks(event.hash, event.eventId)
+    }
+
+    @Transactional
+    override fun onUpdated(event: ShortUrlUpdatedEvent) {
+        store.updateActive(event.hash, event.active)
+        log.info { "stats active=${event.active} for ${event.hash}" }
     }
 
     @Transactional

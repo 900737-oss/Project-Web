@@ -19,6 +19,7 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 
 ## Later (after the 2 October agreement)
 
+
 - **ADR:** [docs/adr/0004-link-preview-broker.md](../adr/0004-link-preview-broker.md)
 
 ### Acceptance criteria
