@@ -1,7 +1,9 @@
 FROM eclipse-temurin:25-jdk AS build
 WORKDIR /workspace
 COPY . .
-RUN ./gradlew --no-daemon bootJar
+RUN sed -i 's/\r$//' gradlew \
+    && chmod +x gradlew \
+    && ./gradlew --no-daemon bootJar
 
 FROM eclipse-temurin:25-jre
 RUN apt-get update \
