@@ -1,31 +1,31 @@
 # ADR 0004: Link preview module and broker-backed fetch
 
 - **Status:** Accepted
-- **Date:** 2026-10-17
+- **Date:** 2026-10-21
 - **Deciders:** Feature card [0004](../features/0004-link_preview_open_graph.md)
 
 ## Context
 
 Feature 0004 stores an Open Graph preview for each short URL and serves it from `GET /api/preview/{hash}`. The hash and the target URL are owned by `links` and are announced with `ShortUrlCreatedEvent` after the short URL is committed. Preview data must not be read from `short_url`, and the fetch must not run on `POST /api/link` or on `GET /{hash}`.
 
-The feature weight is 21, so the fetch has to cross JVM boundaries and survive a restart. The Compose broker profile starts RabbitMQ, and the applications are not connected to it yet. Both replicas already share one Postgres database.
+The feature weight is 21, so the fetch has to cross JVM boundaries and survive a restart. RabbitMQ is part of the default Compose product stack. Both replicas share one Postgres database.
 
 ## Decision
 
-1. Add a Modulith module `es.unizar.urlshortener.preview`. It keeps the seed hexagon (`SEMI_STRICT`, jMolecules stereotypes). Its public type is `LinkPreviewRequestedEvent` in the module base package, with `hash`, `target`, and `eventId`.
-2. A listener in `preview` consumes `ShortUrlCreatedEvent` by importing only that type. It inserts one `link_preview` row in `PENDING` state and then publishes `LinkPreviewRequestedEvent`. A repeated creation event for the same hash does not insert a second row and does not publish a second request.
-3. Externalize `LinkPreviewRequestedEvent` to RabbitMQ after commit, using the existing `--profile broker` service. A consumer in `preview`, running on whichever replica receives the message, fetches the target page and updates that same Postgres row to `READY` or `FAILED`.
+1. Add a Modulith module `es.unizar.urlshortener.preview`. It keeps the seed hexagon (`SEMI_STRICT`, jMolecules stereotypes). The broker contract is the public `links.LinkPreviewRequestedEvent` type, with `hash`, `target`, and `eventId`; `preview` consumes it without importing `links` internals.
+2. A listener in `preview` consumes `ShortUrlCreatedEvent` by importing only that type and inserts one `link_preview` row in `PENDING` state. A repeated creation event for the same hash does not insert a second row.
+3. `links` publishes the new public `LinkPreviewRequestedEvent` with `hash`, `target`, and `eventId`. Modulith externalizes it to RabbitMQ after commit. A consumer in `preview`, running on whichever replica receives the message, ensures the pending row exists, fetches the target page, and updates it to `READY` or `FAILED`.
 4. Fetch with Jsoup (HTTPS, redirects, timeout, maximum body size). Prefer `og:title`, `og:image`, and `og:url`; fall back to the document `<title>`. Wrap the call in a Resilience4j circuit breaker. After repeated failures the row becomes `FAILED`. An already `READY` row is not fetched again.
 5. Leave `POST /api/link` and `GET /{hash}` unchanged. If RabbitMQ or the target site is unavailable, link creation still returns 201 and the preview row stays `PENDING` or becomes `FAILED`. `GET /api/preview/{hash}` reads only `link_preview`: 404 Problem Details when the hash is unknown, 200 with `status` when the row exists.
-6. `docker compose up --build` still starts without RabbitMQ. Completing previews requires `docker compose --profile broker up --build`, with both replicas on the Spring `broker` profile.
+6. `docker compose up --build` builds the application JARs and starts RabbitMQ plus both application replicas with the Spring `broker` profile. Preview requests are processed asynchronously across replicas.
 
 ## Consequences
 
 - The slow fetch is durable and can be completed by the replica that did not serve `POST /api/link`.
 - `preview` never imports `links` internals. Both replicas see the row because they share Postgres.
-- Local `bootRun` and the default Compose stack keep working without RabbitMQ. Previews stay incomplete until the broker profile is up.
-- The feature card name `LinkPreviewFetchedEvent` described the result. The durable message is the request, so the event that crosses the broker is `LinkPreviewRequestedEvent`. The card is updated in a later commit so the defence text matches this ADR.
-- Evidence below records the branch tests and the Compose broker run from 2026-10-18.
+- Local `bootRun` remains available without RabbitMQ. The default Compose stack includes RabbitMQ and processes preview requests asynchronously.
+- The feature card name `LinkPreviewFetchedEvent` described the result. The durable message is the request, so the event that crosses the broker is `LinkPreviewRequestedEvent`.
+- The default Compose runtime could not be fully verified in the current Codespace because Docker bridge TCP connections timed out; the broker event path is verified by `LinkPreviewBrokerTests`.
 
 ## Alternatives considered
 
@@ -52,14 +52,14 @@ flowchart LR
   preview["preview"]
   rabbit["RabbitMQ<br/>preview.requested"]
   links -->|"ShortUrlCreatedEvent<br/>(in-process)"| preview
-  preview -->|"LinkPreviewRequestedEvent<br/>(@Externalized)"| rabbit
+  links -->|"LinkPreviewRequestedEvent<br/>(@Externalized after commit)"| rabbit
   rabbit -->|"@RabbitListener"| preview
 ```
 
-`preview` depends on `links` only by listening to its public event. It does not import `links` internals. The durable hop is `LinkPreviewRequestedEvent` on the broker.
+`preview` depends on `links` only through public event types. It does not import `links` internals. `LinkPreviewRequestedEvent` is published by `links`, externalized through RabbitMQ, and consumed by `preview`.
 
 ## Evidence (defence)
 
-- [x] Code on branch `feature/0004-link-preview` (module `preview`, ADR 0004, Compose broker wiring).
-- [x] `./gradlew test --tests es.unizar.urlshortener.preview.*` including `LinkPreviewBrokerTests`; `docker compose up` without Rabbit still returns **201**; `docker compose --profile broker up` completes previews across replicas.
+- [x] Code on branch `feature/0004-link-preview` (module `preview`, cross-module event from `links`, ADR 0004, Compose broker wiring).
+- [x] `./gradlew test --tests es.unizar.urlshortener.preview.*` including `LinkPreviewBrokerTests`; default `docker compose up --build` starts Rabbit and both replicas.
 - [x] Modulith docs: `ModularityTests` writes `build/spring-modulith-docs/`; defence copies under [diagrams/](diagrams/) (`0004-module-preview.puml`, `0004-components.puml`, `0004-module-preview.adoc`).

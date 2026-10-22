@@ -16,7 +16,7 @@ Each application replica serves `GET /{hash}`. An in-process cache can keep retu
 4. In Docker, relay the committed event hash over Redis Pub/Sub. Every replica subscribes and evicts the shared Redis key. The publishing replica also deletes that key in the after-commit listener, so the shared entry is gone before the HTTP response returns. Local development evicts directly after commit.
 5. Expose `POST /api/link/{hash}/deactivate`. Require a non-empty, configured `X-Admin-Token`, compare tokens in constant time, and fail closed with 401 when absent or incorrect. Configure the token through `URLSHORTENER_ADMIN_TOKEN`; do not commit it.
 6. `analytics` consumes `ShortUrlUpdatedEvent` and sets `LinkStats.active` without changing `totalClicks`. `GET /api/stats/{hash}` exposes `active`. Cache invalidation stays inside `links`.
-7. On the `broker` profile, Spring Modulith externalizes `ShortUrlUpdatedEvent` to the durable topic exchange `urlshortener.short-url-updated`. Messages are persistent. `links` and `analytics` each bind their own durable queue, so the modules stay isolated and a replica that is down receives the event when it returns. The JDBC publication registry retries a failed publish. Without that profile, `analytics` listens in-process and Docker still invalidates the shared cache through Redis Pub/Sub, so `docker compose up` does not require RabbitMQ.
+7. Spring Modulith externalizes `ShortUrlUpdatedEvent` to the durable topic exchange `urlshortener.short-url-updated`. Messages are persistent. `links` and `analytics` each bind their own durable queue, so the modules stay isolated and a replica that is down receives the event when it returns. The JDBC publication registry retries a failed publish. RabbitMQ is part of the default Compose stack; Docker also invalidates the shared cache through Redis Pub/Sub.
 
 ## Consequences
 
@@ -24,7 +24,7 @@ Each application replica serves `GET /{hash}`. An in-process cache can keep retu
 - Deactivation crosses from `links` to `analytics` only through `ShortUrlUpdatedEvent`. Stats keep their click total and report the link inactive.
 - Cache entries expire after the configured TTL even if a future invalidation is missed.
 - Redis and a shared admin token are required for the Docker product deployment. The local profile remains self-contained but does not demonstrate cross-replica behavior.
-- Redis Pub/Sub is transient. The broker profile replaces that transport for `ShortUrlUpdatedEvent` with a durable queue per module. A cache miss still checks the persisted inactive state if a message is delayed.
+- Redis Pub/Sub is transient. RabbitMQ also externalizes `ShortUrlUpdatedEvent` through a durable queue per module. A cache miss still checks the persisted inactive state if a message is delayed.
 - Compose starts `app2` only after `app1` is healthy to avoid concurrent initialization of Spring Modulith's shared JDBC event-publication schema.
 
 ## Alternatives considered

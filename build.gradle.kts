@@ -41,7 +41,6 @@ dependencies {
     implementation(libs.modulith.starter.core)
     implementation(libs.modulith.starter.jdbc)
     implementation(libs.modulith.events.amqp)
-    implementation(libs.spring.boot.starter.amqp)
     implementation(libs.jmolecules.hexagonal)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.commons.validator)

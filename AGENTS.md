@@ -14,6 +14,7 @@
 ./gradlew ktlintFormat         # Auto-fix style issues
 ./gradlew bootJar
 docker compose up --build      # Graded product: Postgres + app1 + app2 + nginx LB on :8080
+docker compose logs -f app1 app2 rabbit
 docker compose --profile load run --rm k6
 # or from host:
 BASE_URL=http://localhost:8080 k6 run scripts/load.k6.js
@@ -31,6 +32,7 @@ Each package below is a **Modulith application module**. Own your feature in one
 | `links`     | Create/store/redirect short URLs (`ShortUrl`, `CreateShortUrl`, `RedirectShortUrl`) | Click history or `LinkStats` |
 | `clicks`    | Append-only click log (`Click`); type `ClickLoggedEvent` lives here                  | Totals / `/api/stats`; publishing the click event |
 | `analytics` | Per-hash counters (`LinkStats`, `UpdateLinkStats`, `GetLinkStats`)                  | Raw click rows               |
+| `preview`   | Open Graph previews and asynchronous fetching                                      | Link records or other modules' persistence |
 
 ### HTTP API
 
@@ -47,12 +49,14 @@ Each package below is a **Modulith application module**. Own your feature in one
 | `ShortUrlCreatedEvent` | `links` | `links` (`LinkService.create`) | After a short URL is persisted | `hash`, `target`, `createdAt` |
 | `ClickLoggedEvent` | `clicks` | `links` (`LinkService.redirect`) | After a successful redirect lookup | `hash`, `occurredAt`, `eventId` (consumers ignore repeats; [ADR 0002](docs/adr/0002-atomic-upserts.md)) |
 | `ShortUrlUpdatedEvent` | `links` | `links` (`LinkService.deactivate`) | After a short URL is deactivated | `hash`, `active`, `updatedAt` ([ADR 0004](docs/adr/0004-redis-redirect-cache.md)) |
+| `LinkPreviewRequestedEvent` | `links` | `links` (`LinkService.create`) | After a short URL is stored | `hash`, `target`, `eventId` ([ADR 0004](docs/adr/0004-link-preview-broker.md)) |
 
 | Module | Publishes | Consumes |
 | --- | --- | --- |
-| `links` | `ShortUrlCreatedEvent`, `ClickLoggedEvent`, `ShortUrlUpdatedEvent` | `ShortUrlUpdatedEvent` for redirect-cache invalidation |
+| `links` | `ShortUrlCreatedEvent`, `ClickLoggedEvent`, `ShortUrlUpdatedEvent`, `LinkPreviewRequestedEvent` | `ShortUrlUpdatedEvent` for redirect-cache invalidation |
 | `clicks` | — | `ClickLoggedEvent` via `ClickRecorder` |
 | `analytics` | — | `ShortUrlCreatedEvent`, `ClickLoggedEvent`, `ShortUrlUpdatedEvent` via `LinkStatsListener` |
+| `preview` | — | `ShortUrlCreatedEvent` in-process; `LinkPreviewRequestedEvent` via RabbitMQ |
 
 **Do not confuse:** `clicks` = permanent log (many rows per hash); `analytics` = one `LinkStats` row per hash. Sole exception: `analytics` keeps processed `ClickLoggedEvent` ids (no hash) for deduplication, pruned after `urlshortener.analytics.processed-click-retention` ([ADR 0002](docs/adr/0002-atomic-upserts.md)). Growing a feature? Put it in the module that owns that data, or add a new module + ADR.
 
@@ -70,7 +74,7 @@ Grown changes that affect modules, hexagon enforcement, events, or specialised t
 
 ## Grown (students)
 
-Technologies beyond baseline HTTP (Call-Return, Event-Based, Data Flow), each in a distinct grown feature. Web UI is not graded. Level 4 for [0006](docs/features/0006-redirect_cache_cross_replica.md) externalizes `ShortUrlUpdatedEvent` to RabbitMQ when `docker compose --profile broker up` is used. **Feature cards** under [`docs/features/`](docs/features/README.md). Defence packet: filled feature cards, ADR log, and a live Compose demo.
+Technologies beyond baseline HTTP (Call-Return, Event-Based, Data Flow), each in a distinct grown feature. Web UI is not graded. The default Compose stack starts RabbitMQ; [0004](docs/features/0004-link_preview_open_graph.md) externalizes `LinkPreviewRequestedEvent`, consumed by `preview`. **Feature cards** under [`docs/features/`](docs/features/README.md). Defence packet: filled feature cards, ADR log, and a live Compose demo.
 
 ## Engineering quality ticks
 
