@@ -1,4 +1,4 @@
-# ADR 0006: Send ClickLoggedEvent through RabbitMQ
+# ADR 0008: Send ClickLoggedEvent through RabbitMQ
 
 - **Status:** Proposed
 - **Date:** 2026-10-21

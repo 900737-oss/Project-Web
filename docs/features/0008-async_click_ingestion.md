@@ -26,7 +26,7 @@ or Kafka with--profile broker; @TransactionalEventListener(AFTER_COMMIT).
 
 ## Later (after the 2 October agreement)
 
-- **ADR:** [0006](../adr/0006-click-logged-broker.md)
+- **ADR:** [0008](../adr/0008-click-logged-broker.md)
 
 ### Acceptance criteria
 
@@ -45,7 +45,7 @@ Not delivered in the 27 November prototype. The delivered Level 4 feature is [00
 | --- | --- | --- |
 | **Correctness** | 0 | Click ingestion is still the in-process seed listener. |
 | **Scalability** | 0 | No broker-down or externalized-click run for this feature. |
-| **Engineering** | 0 | ADR [0006](../adr/0006-click-logged-broker.md) is filed; the feature code is not implemented yet, so `./gradlew check` does not cover the broker path. |
+| **Engineering** | 0 | ADR [0008](../adr/0008-click-logged-broker.md) is filed; the feature code is not implemented yet, so `./gradlew check` does not cover the broker path. |
 
 **Indicative total:** 0 / 10
 
