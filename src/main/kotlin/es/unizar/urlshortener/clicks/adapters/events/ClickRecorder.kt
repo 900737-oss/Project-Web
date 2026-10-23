@@ -2,10 +2,12 @@ package es.unizar.urlshortener.clicks.adapters.events
 
 import es.unizar.urlshortener.clicks.ClickLoggedEvent
 import es.unizar.urlshortener.clicks.application.RecordClick
+import org.springframework.context.annotation.Profile
 import org.springframework.modulith.events.ApplicationModuleListener
 import org.springframework.stereotype.Component
 
 @Component
+@Profile("!broker")
 class ClickRecorder(
     private val recordClick: RecordClick,
 ) {
