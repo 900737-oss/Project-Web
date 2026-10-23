@@ -34,7 +34,7 @@ services:
       DB_PASSWORD: urlshortener
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      URLSHORTENER_ADMIN_TOKEN: ${URLSHORTENER_ADMIN_TOKEN:-test-admin-token}
+      URLSHORTENER_ADMIN_TOKEN: ${URLSHORTENER_ADMIN_TOKEN:-}
     depends_on:
       db:
         condition: service_healthy
