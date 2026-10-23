@@ -38,9 +38,27 @@ Each application replica serves `GET /{hash}`. An in-process cache can keep retu
 | Redis Pub/Sub as the Level 4 transport | Pub/Sub drops messages when a subscriber is offline, so it is not durable and does not give each module its own queue. |
 | Keep `ShortUrlUpdatedEvent` inside `links` | `analytics` would keep describing a deactivated link as active. The read model for a hash belongs to `analytics`, and the allowed coupling is the event. |
 
-## Evidence
+## Module diagram (Modulith)
 
-- `LinkDeactivationTests`: token enforcement, repeat deactivation, missing hashes, invalidation after warming a redirect cache, and `GET /api/stats/{hash}` reporting `active: false` with the click total unchanged.
-- `ShortUrlUpdatedBrokerTests`: with the `broker` profile and RabbitMQ, `analytics` reports `active: false` only after the durable queue delivers `ShortUrlUpdatedEvent`.
-- Compose runtime verification: both app replicas healthy; both returned 307 before deactivation; Redis TTL was 3599 seconds; after deactivation, both returned 404 and the Redis key was absent.
-- Parallel startup initially reproduced a race in the Spring Modulith JDBC schema initializer. Serializing the app startup in Compose resolved it; a clean two-replica startup was verified.
+```mermaid
+flowchart LR
+  client["Client"]
+  links["links (App1)"]
+  links2["links (App2)"]
+  redis[("Redis Cache<br/>& Pub/Sub")]
+  rabbit["RabbitMQ<br/>urlshortener.short-url-updated"]
+  analytics["analytics (App1/App2)"]
+
+  client -->|"POST /api/link/{hash}/deactivate"| links
+  links -->|"1. Evict + Pub/Sub notify"| redis
+  redis -->|"Invalidate local/shared key"| links2
+  links -->|"2. ShortUrlUpdatedEvent (@Externalized)"| rabbit
+  rabbit -->|"Durable queue"| analytics
+```
+
+## Evidence (defence)
+
+- [x] Code: `es.unizar.urlshortener.links.adapters.cache` (Redis/InMemory), `es.unizar.urlshortener.links.adapters.broker` (RabbitMQ TopicExchange), `es.unizar.urlshortener.links.adapters.web.LinkController` (`POST /api/link/{hash}/deactivate`).
+- [x] Test / command: `./gradlew test --tests es.unizar.urlshortener.links.LinkDeactivationTests` and `./gradlew test --tests es.unizar.urlshortener.links.ShortUrlUpdatedBrokerTests`.
+- [x] Compose runtime & k6: `docker compose up --build` with 2 app replicas (`app1`, `app2`), `redis`, `rabbit`, `db`, `lb`; k6 load test: 0 failed checks (100% success).
+- [x] Modulith doc: `ModularityTests` passes `ensureHexagonal(SEMI_STRICT)` and `ApplicationModules.verify()`.
