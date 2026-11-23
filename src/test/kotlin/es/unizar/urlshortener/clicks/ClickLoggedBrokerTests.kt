@@ -98,8 +98,7 @@ class ClickLoggedBrokerTests {
         fail<Unit>("stats for $hash did not reach totalClicks=$clicks; last=$last")
     }
 
-    private fun clickRows(hash: String): Int =
-        jdbc.queryForObject("select count(*) from click where hash = ?", Int::class.java, hash) ?: 0
+    private fun clickRows(hash: String): Int = jdbc.queryForObject("select count(*) from click where hash = ?", Int::class.java, hash) ?: 0
 
     private companion object {
         const val REDELIVERIES = 3

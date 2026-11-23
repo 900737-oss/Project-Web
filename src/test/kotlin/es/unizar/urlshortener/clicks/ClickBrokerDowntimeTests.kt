@@ -1,4 +1,4 @@
-﻿package es.unizar.urlshortener.clicks
+package es.unizar.urlshortener.clicks
 
 import com.jayway.jsonpath.JsonPath.read
 import es.unizar.urlshortener.RabbitContainer
@@ -142,6 +142,5 @@ class ClickBrokerDowntimeTests {
         fail<Unit>("ingestion for $hash did not reach clicks=$clicks; last=$last")
     }
 
-    private fun clickRows(hash: String): Int =
-        jdbc.queryForObject("select count(*) from click where hash = ?", Int::class.java, hash) ?: 0
+    private fun clickRows(hash: String): Int = jdbc.queryForObject("select count(*) from click where hash = ?", Int::class.java, hash) ?: 0
 }
