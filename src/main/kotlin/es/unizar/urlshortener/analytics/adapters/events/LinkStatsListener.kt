@@ -16,7 +16,13 @@ class LinkStatsListener(
     fun onCreated(event: ShortUrlCreatedEvent) {
         updateLinkStats.onCreated(event)
     }
+}
 
+@Component
+@Profile("!broker")
+class InProcessClickLoggedListener(
+    private val updateLinkStats: UpdateLinkStats,
+) {
     @ApplicationModuleListener
     fun onClick(event: ClickLoggedEvent) {
         updateLinkStats.onClick(event)

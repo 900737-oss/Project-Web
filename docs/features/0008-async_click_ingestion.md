@@ -30,14 +30,12 @@ needs idempotency on the consumer (`eventId` already exists for the in-process l
 
 ### Acceptance criteria
 
-- [ ] `ClickLoggedEvent` is externalized to the broker after the redirect transaction commits.
+- [x] `ClickLoggedEvent` is externalized to the broker after the redirect transaction commits.
 - [ ] `GET /{hash}` still returns 307 when the broker is down.
 - [ ] A repeated `eventId` is ingested once by the click log and by the stats counter.
 - [ ] Weight 21 is not met by the in-process listener alone. The event must travel through the durable broker.
 
-### Scale evidence
 
-Not delivered in the 27 November prototype. The delivered Level 4 feature is [0006](0006-redirect_cache_cross_replica.md). The shared k6 run on 2026-10-17 had 0 failed checks.
 
 ### Qualities
 
