@@ -59,6 +59,10 @@ class LinkNotFoundException(
     hash: String,
 ) : RuntimeException("[$hash] is not known")
 
+class LinkGoneException(
+    hash: String,
+) : RuntimeException("[$hash] has been deactivated")
+
 @PrimaryPort
 fun interface CreateShortUrl {
     fun create(url: String): CreatedShortUrl

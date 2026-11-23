@@ -12,7 +12,7 @@ class JpaShortUrlStore(
 ) : ShortUrlStore {
     override fun insert(shortUrl: ShortUrl): ShortUrl = repository.save(shortUrl.toEntity()).toDomain()
 
-    override fun findByHash(hash: String): Optional<ShortUrl> = repository.findById(hash).filter { it.active }.map { it.toDomain() }
+    override fun findByHash(hash: String): Optional<ShortUrl> = repository.findForRedirect(hash).map { it.toDomain() }
 
     override fun deactivate(hash: String): DeactivationOutcome {
         val entity = repository.findById(hash).orElse(null)

@@ -11,6 +11,9 @@ import es.unizar.urlshortener.preview.application.OpenGraphMetadata
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoMoreInteractions
 
 class FetchLinkPreviewTests {
     private val store = MemoryLinkPreviewStore()
@@ -65,6 +68,38 @@ class FetchLinkPreviewTests {
 
         assertEquals("Already", store.findByHash("abc")?.title)
         assertEquals(0, client.calls)
+    }
+
+    @Test
+    fun `a successful retry replaces the failed status and clears its detail`() {
+        store.save(
+            LinkPreview(
+                hash = "abc",
+                target = "https://example.com/story",
+                status = LinkPreviewStatus.FAILED,
+                detail = "Previous request timed out",
+            ),
+        )
+
+        fetch.fetch("abc", "https://example.com/story")
+
+        val stored = store.findByHash("abc")
+        assertEquals(LinkPreviewStatus.READY, stored?.status)
+        assertEquals("Story", stored?.title)
+        assertNull(stored?.detail)
+        assertEquals(1, client.calls)
+    }
+
+    @Test
+    fun `a row removed before lookup is not fetched or recreated by saving`() {
+        val disappeared = mock(LinkPreviewStore::class.java)
+
+        LinkPreviewService(disappeared, client).fetch("deleted", "https://example.com/story")
+
+        assertEquals(0, client.calls)
+        verify(disappeared).insertPending("deleted", "https://example.com/story")
+        verify(disappeared).findByHash("deleted")
+        verifyNoMoreInteractions(disappeared)
     }
 
     private class FakeOpenGraphClient : OpenGraphClient {
