@@ -67,7 +67,7 @@ The acceptance criteria include the existing acceptance criteria that do not con
 
 #### Both replicas
 
-- [ ] The same `eventId` leaves `totalClicks` at 1, including when the redirect and the stats read hit different replicas
+- [x] The same `eventId` leaves `totalClicks` at 1, including when the redirect and the stats read hit different replicas
 
 #### Events
 
