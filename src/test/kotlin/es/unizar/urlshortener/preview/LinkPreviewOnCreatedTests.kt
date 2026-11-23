@@ -1,6 +1,8 @@
 package es.unizar.urlshortener.preview
 
+import es.unizar.urlshortener.links.LinkPreviewRequestedEvent
 import es.unizar.urlshortener.links.ShortUrlCreatedEvent
+import es.unizar.urlshortener.links.application.CreateShortUrl
 import es.unizar.urlshortener.preview.application.LinkPreviewStatus
 import es.unizar.urlshortener.preview.application.LinkPreviewStore
 import es.unizar.urlshortener.preview.application.RecordPendingLinkPreview
@@ -35,6 +37,9 @@ class LinkPreviewOnCreatedTests {
     @Autowired
     lateinit var recordPendingLinkPreview: RecordPendingLinkPreview
 
+    @Autowired
+    lateinit var createShortUrl: CreateShortUrl
+
     @Test
     fun `a created short url stores one pending preview`() {
         val hash = "preview-created-${UUID.randomUUID()}"
@@ -48,16 +53,21 @@ class LinkPreviewOnCreatedTests {
     }
 
     @Test
-    fun `recording a pending preview publishes one request and ignores repeats`(published: PublishedEvents) {
+    fun `recording a pending preview is idempotent`() {
         val hash = "preview-repeat-${UUID.randomUUID()}"
         assertTrue(recordPendingLinkPreview.onShortUrlCreated(hash, "https://example.com/story"))
         assertFalse(recordPendingLinkPreview.onShortUrlCreated(hash, "https://example.com/other"))
 
         assertEquals("https://example.com/story", store.findByHash(hash)?.target)
         assertEquals(LinkPreviewStatus.PENDING, store.findByHash(hash)?.status)
-        val requests = published.ofType(LinkPreviewRequestedEvent::class.java).filter { it.hash == hash }
-        assertEquals(1, requests.size)
-        assertEquals("https://example.com/story", requests.single().target)
+    }
+
+    @Test
+    fun `creating a short url publishes the preview request from links`(published: PublishedEvents) {
+        val created = createShortUrl.create("https://example.com/${UUID.randomUUID()}")
+
+        val request = published.ofType(LinkPreviewRequestedEvent::class.java).single { it.hash == created.hash }
+        assertEquals(created.target, request.target)
     }
 
     private fun publish(event: ShortUrlCreatedEvent) {

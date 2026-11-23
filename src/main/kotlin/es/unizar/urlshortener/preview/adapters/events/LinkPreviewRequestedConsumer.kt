@@ -1,7 +1,7 @@
 package es.unizar.urlshortener.preview.adapters.events
 
-import es.unizar.urlshortener.preview.LINK_PREVIEW_REQUESTED_QUEUE
-import es.unizar.urlshortener.preview.LinkPreviewRequestedEvent
+import es.unizar.urlshortener.links.LINK_PREVIEW_REQUESTED_QUEUE
+import es.unizar.urlshortener.links.LinkPreviewRequestedEvent
 import es.unizar.urlshortener.preview.application.FetchLinkPreview
 import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.context.annotation.Profile

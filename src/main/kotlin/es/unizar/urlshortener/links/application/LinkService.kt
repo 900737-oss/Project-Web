@@ -1,6 +1,7 @@
 package es.unizar.urlshortener.links.application
 
 import es.unizar.urlshortener.clicks.ClickLoggedEvent
+import es.unizar.urlshortener.links.LinkPreviewRequestedEvent
 import es.unizar.urlshortener.links.ShortUrlCreatedEvent
 import es.unizar.urlshortener.links.ShortUrlUpdatedEvent
 import es.unizar.urlshortener.links.domain.ShortUrl
@@ -28,6 +29,7 @@ class LinkService(
         }
         val stored = store.insert(ShortUrl(hash = codes.next(), target = trimmed))
         events.publishEvent(ShortUrlCreatedEvent(hash = stored.hash, target = stored.target))
+        events.publishEvent(LinkPreviewRequestedEvent(hash = stored.hash, target = stored.target))
         return CreatedShortUrl(hash = stored.hash, target = stored.target)
     }
 
@@ -36,6 +38,7 @@ class LinkService(
         val target =
             redirectCache.findTarget(hash).orElseGet {
                 val shortUrl = store.findByHash(hash).orElseThrow { LinkNotFoundException(hash) }
+                if (!shortUrl.active) throw LinkGoneException(hash)
                 redirectCache.putTarget(hash, shortUrl.target)
                 shortUrl.target
             }
@@ -48,7 +51,7 @@ class LinkService(
         when (store.deactivate(hash)) {
             DeactivationOutcome.DEACTIVATED ->
                 events.publishEvent(ShortUrlUpdatedEvent(hash = hash, active = false))
-            DeactivationOutcome.ALREADY_DEACTIVATED -> Unit
+            DeactivationOutcome.ALREADY_DEACTIVATED -> redirectCache.evict(hash)
             DeactivationOutcome.NOT_FOUND -> throw LinkNotFoundException(hash)
         }
     }

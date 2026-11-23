@@ -4,18 +4,18 @@
 
 **Owner module**: clicks | **Event-coupled**: Y
 
-Forwards `ClickLoggedEvent` to an external broker (--profile broker). The type lives in clicks.
+Would forward `ClickLoggedEvent` to an external broker. The type lives in `clicks`.
 links already publishes it from LinkService on redirect. @ApplicationModuleListener and the
 JDBC Event Publication Registry (bootstrapped in the seed) already run the click write off the
 redirect thread. This feature externalises that in-process publication. Consumers are idempotent.
 
 **Traps**:  the seed publication is in-process — the broker path is a structural change (the Compose
-broker profile is a RabbitMQ stub, with AMQP still unwired); broker-down must leave the 307 in
-place; at-least-once delivery needs idempotency on the consumer (eventId already exists for the
-in-process listeners).
+RabbitMQ is already wired for preview and link-update events, but this feature has not yet
+externalized `ClickLoggedEvent`; broker-down must leave the 307 in place; at-least-once delivery
+needs idempotency on the consumer (`eventId` already exists for the in-process listeners).
 
-**Technology hints**: Spring Modulith ApplicationEventPublicationRegistry; RabbitMQ
-or Kafka with--profile broker; @TransactionalEventListener(AFTER_COMMIT).
+**Technology hints**: Spring Modulith ApplicationEventPublicationRegistry; RabbitMQ or Kafka;
+`@TransactionalEventListener(AFTER_COMMIT)`.
 
 ---
 
@@ -30,7 +30,7 @@ or Kafka with--profile broker; @TransactionalEventListener(AFTER_COMMIT).
 
 ### Acceptance criteria
 
-- [ ] `ClickLoggedEvent` is externalized to the broker (`--profile broker`) after the redirect transaction commits.
+- [ ] `ClickLoggedEvent` is externalized to the broker after the redirect transaction commits.
 - [ ] `GET /{hash}` still returns 307 when the broker is down.
 - [ ] A repeated `eventId` is ingested once by the click log and by the stats counter.
 - [ ] Weight 21 is not met by the in-process listener alone. The event must travel through the durable broker.

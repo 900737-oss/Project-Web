@@ -1,6 +1,6 @@
 package es.unizar.urlshortener.preview.adapters.events
 
-import es.unizar.urlshortener.preview.LINK_PREVIEW_REQUESTED_QUEUE
+import es.unizar.urlshortener.links.LINK_PREVIEW_REQUESTED_QUEUE
 import org.springframework.amqp.core.Binding
 import org.springframework.amqp.core.BindingBuilder
 import org.springframework.amqp.core.DirectExchange

@@ -1,9 +1,9 @@
 package es.unizar.urlshortener.preview
 
-import com.rabbitmq.client.ConnectionFactory
 import com.sun.net.httpserver.HttpServer
+import es.unizar.urlshortener.links.application.CreateShortUrl
+import es.unizar.urlshortener.preview.application.GetLinkPreview
 import es.unizar.urlshortener.preview.application.LinkPreviewStatus
-import es.unizar.urlshortener.preview.application.LinkPreviewStore
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -18,11 +18,9 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.rabbitmq.RabbitMQContainer
 import java.net.InetSocketAddress
 import java.time.Duration
-import java.util.UUID
 
 /**
- * The application under test only consumes.
- * The request is published with the RabbitMQ client, not with [org.springframework.context.ApplicationEventPublisher].
+ * Verifies that links publishes the request and preview consumes it through RabbitMQ.
  */
 @SpringBootTest
 @ActiveProfiles("broker")
@@ -30,56 +28,28 @@ import java.util.UUID
 @Import(PreviewRabbitContainer::class)
 class LinkPreviewBrokerTests {
     @Autowired
-    lateinit var store: LinkPreviewStore
+    lateinit var createShortUrl: CreateShortUrl
 
     @Autowired
-    lateinit var rabbit: RabbitMQContainer
+    lateinit var getLinkPreview: GetLinkPreview
 
     @Test
-    fun `a request published straight to the broker marks the pending row ready`() {
-        val hash = "preview-from-broker-${UUID.randomUUID()}"
+    fun `link creation publishes a request consumed through the broker`() {
         val server = openGraphPage()
         try {
-            store.insertPending(hash, server.url)
-            publish(
-                """
-                {"hash":"$hash","target":"${server.url}","eventId":"${UUID.randomUUID()}"}
-                """.trimIndent(),
-            )
+            val created = createShortUrl.create(server.url)
 
             await().atMost(Duration.ofSeconds(20)).until {
-                val status = store.findByHash(hash)?.status
-                status == LinkPreviewStatus.READY || status == LinkPreviewStatus.FAILED
+                getLinkPreview.findByHash(created.hash)?.status == LinkPreviewStatus.READY
             }
 
-            val stored = store.findByHash(hash)
+            val stored = getLinkPreview.findByHash(created.hash)
             assertEquals(LinkPreviewStatus.READY, stored?.status)
             assertEquals("Story", stored?.title)
             assertEquals("https://cdn.example/story.jpg", stored?.image)
             assertEquals("https://example.com/story", stored?.url)
         } finally {
             server.stop()
-        }
-    }
-
-    private fun publish(json: String) {
-        val factory =
-            ConnectionFactory().apply {
-                host = rabbit.host
-                port = rabbit.amqpPort
-                username = rabbit.adminUsername
-                password = rabbit.adminPassword
-            }
-        factory.newConnection().use { connection ->
-            connection.createChannel().use { channel ->
-                val properties =
-                    com.rabbitmq.client.AMQP.BasicProperties
-                        .Builder()
-                        .contentType("application/json")
-                        .headers(mapOf("__TypeId__" to LinkPreviewRequestedEvent::class.java.name))
-                        .build()
-                channel.basicPublish("", LINK_PREVIEW_REQUESTED_QUEUE, properties, json.toByteArray())
-            }
         }
     }
 

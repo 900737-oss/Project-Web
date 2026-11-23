@@ -1,5 +1,7 @@
 package es.unizar.urlshortener.preview
 
+import es.unizar.urlshortener.links.LINK_PREVIEW_REQUESTED_TARGET
+import es.unizar.urlshortener.links.LinkPreviewRequestedEvent
 import es.unizar.urlshortener.preview.adapters.events.LinkPreviewRequestedConsumer
 import es.unizar.urlshortener.preview.application.FetchLinkPreview
 import org.junit.jupiter.api.Assertions.assertEquals

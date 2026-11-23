@@ -3,12 +3,14 @@ package es.unizar.urlshortener.links.adapters.web
 import es.unizar.urlshortener.links.application.CreateShortUrl
 import es.unizar.urlshortener.links.application.DeactivateShortUrl
 import es.unizar.urlshortener.links.application.InvalidUrlException
+import es.unizar.urlshortener.links.application.LinkGoneException
 import es.unizar.urlshortener.links.application.LinkNotFoundException
 import es.unizar.urlshortener.links.application.RedirectShortUrl
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.ProblemDetail
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
@@ -81,8 +83,12 @@ class LinkController(
         ResponseEntity.badRequest().body(mapOf("error" to (ex.message ?: "invalid url")))
 
     @ExceptionHandler(LinkNotFoundException::class)
-    fun notFound(ex: LinkNotFoundException): ResponseEntity<Map<String, String>> =
-        ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to (ex.message ?: "not found")))
+    fun notFound(ex: LinkNotFoundException): ResponseEntity<ProblemDetail> =
+        ResponseEntity.of(ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.message ?: "not found")).build()
+
+    @ExceptionHandler(LinkGoneException::class)
+    fun gone(ex: LinkGoneException): ResponseEntity<ProblemDetail> =
+        ResponseEntity.of(ProblemDetail.forStatusAndDetail(HttpStatus.GONE, ex.message ?: "link deactivated")).build()
 
     private fun isAuthorized(providedToken: String?): Boolean {
         if (adminToken.isBlank() || providedToken.isNullOrBlank()) return false
