@@ -1,5 +1,5 @@
 /**
- * Driving adapters that consume externalized link and click events from the broker.
+ * Adaptadores de entrada que consumen eventos de link y click externalizados desde el broker.
  */
 @PrimaryAdapter
 package es.unizar.urlshortener.analytics.adapters.broker;

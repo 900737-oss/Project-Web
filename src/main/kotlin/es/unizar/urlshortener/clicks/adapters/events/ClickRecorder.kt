@@ -6,6 +6,10 @@ import org.springframework.context.annotation.Profile
 import org.springframework.modulith.events.ApplicationModuleListener
 import org.springframework.stereotype.Component
 
+/**
+ * Guarda el click en proceso.
+ * Solo activo sin perfil broker, para no duplicar con el listener de Rabbit.
+ */
 @Component
 @Profile("!broker")
 class ClickRecorder(

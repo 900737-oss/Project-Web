@@ -5,8 +5,8 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Delivery is at least once: consumers must ignore an [eventId] they have already processed.
- * With the broker profile, Modulith externalizes it to a durable RabbitMQ exchange.
+ * Entrega al menos una vez: los consumidores deben ignorar un eventId ya procesado.
+ * Con el perfil broker, Modulith lo externaliza a un exchange durable de RabbitMQ.
  */
 @Externalized(ClickLoggedEvent.TARGET)
 data class ClickLoggedEvent(

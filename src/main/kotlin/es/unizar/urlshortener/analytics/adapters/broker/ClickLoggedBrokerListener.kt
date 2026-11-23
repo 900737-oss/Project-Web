@@ -12,6 +12,10 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 
+/**
+ * Cola durable propia de analytics sobre el exchange de [ClickLoggedEvent],
+ * aislada del consumidor del log en clicks.
+ */
 @Configuration
 @Profile("broker")
 class ClickLoggedBrokerConfiguration {
@@ -30,6 +34,7 @@ class ClickLoggedBrokerConfiguration {
     }
 }
 
+/** Actualiza las stats cuando [ClickLoggedEvent] llega por RabbitMQ. */
 @Component
 @Profile("broker")
 class ClickLoggedBrokerListener(
