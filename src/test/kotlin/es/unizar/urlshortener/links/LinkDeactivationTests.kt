@@ -9,10 +9,16 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED
+import org.springframework.http.MediaType.APPLICATION_PROBLEM_JSON
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 @SpringBootTest(properties = ["urlshortener.admin.token=test-admin-token"])
@@ -23,6 +29,9 @@ class LinkDeactivationTests {
 
     @Autowired
     lateinit var redirectCache: RedirectCache
+
+    @Autowired
+    lateinit var jdbc: JdbcTemplate
 
     @Test
     fun `deactivation requires the configured admin token`() {
@@ -60,7 +69,13 @@ class LinkDeactivationTests {
                     .header("X-Admin-Token", "test-admin-token"),
             ).andExpect(status().isNoContent)
 
-        mockMvc.perform(get("/$hash")).andExpect(status().isNotFound)
+        mockMvc
+            .perform(get("/$hash"))
+            .andExpect(status().isGone)
+            .andExpect(content().contentTypeCompatibleWith(APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.status").value(410))
+            .andExpect(jsonPath("$.detail").isString)
+            .andExpect(header().doesNotExist("Location"))
         assertTrue(redirectCache.findTarget(hash).isEmpty)
     }
 
@@ -87,13 +102,17 @@ class LinkDeactivationTests {
                     .header("X-Admin-Token", "test-admin-token"),
             ).andExpect(status().isNoContent)
 
-        mockMvc.perform(get("/$hash")).andExpect(status().isNotFound)
+        mockMvc.perform(get("/$hash")).andExpect(status().isGone)
         awaitStats(hash, active = false, clicks = 1)
     }
 
     @Test
     fun `unknown and inactive hashes are never cached`() {
-        mockMvc.perform(get("/missing-hash")).andExpect(status().isNotFound)
+        mockMvc
+            .perform(get("/missing-hash"))
+            .andExpect(status().isNotFound)
+            .andExpect(content().contentTypeCompatibleWith(APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.status").value(404))
         assertTrue(redirectCache.findTarget("missing-hash").isEmpty)
 
         val hash = createLink()
@@ -103,7 +122,46 @@ class LinkDeactivationTests {
                     .header("X-Admin-Token", "test-admin-token"),
             ).andExpect(status().isNoContent)
 
+        mockMvc.perform(get("/$hash")).andExpect(status().isGone)
+        assertTrue(redirectCache.findTarget(hash).isEmpty)
+    }
+
+    @Test
+    fun `a previous miss does not hide a newly created hash`() {
+        val hash = UUID.randomUUID().toString()
+        val target = "https://example.com/created-after-miss"
         mockMvc.perform(get("/$hash")).andExpect(status().isNotFound)
+        assertTrue(redirectCache.findTarget(hash).isEmpty)
+
+        // The public create endpoint generates its own hash; insert a fixed hash for this regression.
+        jdbc.update("insert into short_url (hash, target, created_at, active) values (?, ?, current_timestamp, true)", hash, target)
+
+        repeat(2) {
+            mockMvc
+                .perform(get("/$hash"))
+                .andExpect(status().isTemporaryRedirect)
+                .andExpect(header().string("Location", target))
+        }
+        assertTrue(redirectCache.findTarget(hash).isPresent)
+    }
+
+    @Test
+    fun `an inactive row returns gone until it is deleted`() {
+        val hash = createLink()
+        mockMvc.perform(get("/$hash")).andExpect(status().isTemporaryRedirect)
+        mockMvc
+            .perform(post("/api/link/$hash/deactivate").header("X-Admin-Token", "test-admin-token"))
+            .andExpect(status().isNoContent)
+        mockMvc.perform(get("/$hash")).andExpect(status().isGone)
+
+        jdbc.update("delete from short_url where hash = ?", hash)
+
+        mockMvc
+            .perform(get("/$hash"))
+            .andExpect(status().isNotFound)
+            .andExpect(content().contentTypeCompatibleWith(APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.status").value(404))
+            .andExpect(header().doesNotExist("Location"))
         assertTrue(redirectCache.findTarget(hash).isEmpty)
     }
 

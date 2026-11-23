@@ -41,6 +41,15 @@ Level 4: `links` publishes a new event (`LinkPreviewRequestedEvent`) consumed by
 2. A previous Compose run demonstrated cross-replica delivery, but used the earlier event publisher and optional broker profile; it is not current runtime evidence for the new default stack.
 3. Current clean-checkout Compose startup remains unverified in this Codespace because bridge TCP connections to the database timed out.
 
+### Coverage verification (2026-11-21)
+
+`gradlew.bat check bootJar` passed with 81 tests, no skipped tests, failures or errors.
+JaCoCo reports 214 of 214 lines covered in `preview` and 566 of 566 globally (100% line coverage).
+The extended tests exercise HTTP errors, timeout, interruption with its flag preserved,
+oversized responses, redirects, blank metadata fallback and recovery from failed previews.
+The downloader uses explicit throws to preserve the same exception type, message and cause
+while avoiding unreachable Kotlin bytecode after a `Nothing`-returning helper.
+
 ### Qualities
 
 | Quality | Assessed | How to test |
@@ -53,6 +62,6 @@ Level 4: `links` publishes a new event (`LinkPreviewRequestedEvent`) consumed by
 
 ### AI disclosure
 
-- **Tools / skills:** Cursor (Composer agent).
-- **Used for:** design of the `preview` module and broker path, implementation, tests, Compose wiring and a part of documentation.
-- **Human-reviewed:** Yes — each commit was reviewed and commands were run by the feature owner before continuing. Additionally, logs and any specific errors that arose were manually verified.
+- **Tools / skills:** Cursor (Composer agent); OpenAI Codex.
+- **Used for:** design of the `preview` module and broker path, implementation, tests, Compose wiring and a part of documentation. On 2026-11-21, Codex added HTTP failure, size limit, redirect, parser fallback and retry tests, and replaced the throwing helper with explicit throws so JaCoCo can record those executed paths.
+- **Human-reviewed:** The original implementation and commands were reviewed by the feature owner. The 2026-11-21 coverage additions and exception refactor require human review.
