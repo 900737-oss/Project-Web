@@ -2,13 +2,16 @@ package es.unizar.urlshortener.clicks
 
 import com.jayway.jsonpath.JsonPath.read
 import es.unizar.urlshortener.RabbitContainer
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
+import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -20,6 +23,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Con perfil broker, el redirect no espera a las stats, ClickLoggedEvent llega por RabbitMQ
+ * Una reentrega con el mismo eventId solo se ingiere una vez
  */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
@@ -29,6 +33,12 @@ import java.util.concurrent.TimeUnit
 class ClickLoggedBrokerTests {
     @Autowired
     lateinit var mockMvc: MockMvc
+
+    @Autowired
+    lateinit var rabbitTemplate: RabbitTemplate
+
+    @Autowired
+    lateinit var jdbc: JdbcTemplate
 
     @Test
     fun `redirect returns 307 immediately and stats rise through the durable broker`() {
@@ -42,6 +52,20 @@ class ClickLoggedBrokerTests {
             .andExpect(header().string("Location", target))
 
         awaitTotalClicks(hash, clicks = 1)
+    }
+
+    @Test
+    fun `a redelivered click through the broker is ingested once`() {
+        val hash = createLink("https://example.com/broker-redelivery-${System.nanoTime()}")
+        awaitTotalClicks(hash, clicks = 0)
+
+        val event = ClickLoggedEvent(hash = hash)
+        repeat(REDELIVERIES) {
+            rabbitTemplate.convertAndSend(ClickLoggedEvent.EXCHANGE, ClickLoggedEvent.ROUTING_KEY, event)
+        }
+
+        awaitTotalClicks(hash, clicks = 1)
+        assertEquals(1, clickRows(hash))
     }
 
     private fun createLink(target: String): String {
@@ -72,5 +96,12 @@ class ClickLoggedBrokerTests {
             Thread.sleep(100)
         }
         fail<Unit>("stats for $hash did not reach totalClicks=$clicks; last=$last")
+    }
+
+    private fun clickRows(hash: String): Int =
+        jdbc.queryForObject("select count(*) from click where hash = ?", Int::class.java, hash) ?: 0
+
+    private companion object {
+        const val REDELIVERIES = 3
     }
 }

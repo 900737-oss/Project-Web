@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component
  */
 @Configuration
 @Profile("broker")
-class ClickLoggedBrokerConfiguration {
+class AnalyticsClickLoggedBrokerConfiguration {
     @Bean
     fun analyticsClickLoggedQueue(): Queue = Queue(QUEUE, true)
 
@@ -37,10 +37,10 @@ class ClickLoggedBrokerConfiguration {
 /** Actualiza las stats cuando [ClickLoggedEvent] llega por RabbitMQ. */
 @Component
 @Profile("broker")
-class ClickLoggedBrokerListener(
+class AnalyticsClickLoggedBrokerListener(
     private val updateLinkStats: UpdateLinkStats,
 ) {
-    @RabbitListener(queues = [ClickLoggedBrokerConfiguration.QUEUE])
+    @RabbitListener(queues = [AnalyticsClickLoggedBrokerConfiguration.QUEUE])
     fun onClick(event: ClickLoggedEvent) {
         updateLinkStats.onClick(event)
     }

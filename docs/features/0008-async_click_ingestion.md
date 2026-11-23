@@ -32,10 +32,8 @@ needs idempotency on the consumer (`eventId` already exists for the in-process l
 
 - [x] `ClickLoggedEvent` is externalized to the broker after the redirect transaction commits.
 - [ ] `GET /{hash}` still returns 307 when the broker is down.
-- [ ] A repeated `eventId` is ingested once by the click log and by the stats counter.
-- [ ] Weight 21 is not met by the in-process listener alone. The event must travel through the durable broker.
-
-
+- [x] A repeated `eventId` is ingested once by the click log and by the stats counter.
+- [x] Weight 21 is not met by the in-process listener alone. The event must travel through the durable broker.
 
 ### Qualities
 
@@ -61,9 +59,9 @@ The acceptance criteria include the existing acceptance criteria that do not con
 
 #### Success
 
-- [ ] Without the broker profile, `GET /{hash}` returns **307** and `GET /api/stats/{hash}` still reports `totalClicks`
-- [ ] An unknown hash returns **404** `ProblemDetails` and does not increase a count
-- [ ] `GET /{hash}` returns **307** with `Location` = target without waiting for `totalClicks` to increase
+- [x] Without the broker profile, `GET /{hash}` returns **307** and `GET /api/stats/{hash}` still reports `totalClicks`
+- [x] An unknown hash returns **404** `ProblemDetails` and does not increase a count
+- [x] `GET /{hash}` returns **307** with `Location` = target without waiting for `totalClicks` to increase
 - [ ] `GET /{hash}` returns **307** with `Location` = target while the broker is down
 - [ ] After the broker is back, `GET /api/stats/{hash}` shows `totalClicks` 1 for that redirect, with no manual replay
 
@@ -73,4 +71,4 @@ The acceptance criteria include the existing acceptance criteria that do not con
 
 #### Events
 
-- [ ] One redirect increases `totalClicks` by 1. Delivering the same `eventId` twice leaves the count unchanged
+- [x] One redirect increases `totalClicks` by 1. Delivering the same `eventId` twice leaves the count unchanged
