@@ -54,3 +54,25 @@ Not delivered in the 27 November prototype. The delivered Level 4 feature is [00
 - **Tools / skills:** Cursor agent.
 - **Used for:** writing these acceptance criteria. The feature itself is not implemented.
 - **Human-reviewed:** pending.
+
+## Course guidance (instructor)
+
+The acceptance criteria include the existing acceptance criteria that do not contradict the proposal.
+
+### Acceptance criteria (instructor)
+
+#### Success
+
+- [ ] Without the broker profile, `GET /{hash}` returns **307** and `GET /api/stats/{hash}` still reports `totalClicks`
+- [ ] An unknown hash returns **404** `ProblemDetails` and does not increase a count
+- [ ] `GET /{hash}` returns **307** with `Location` = target without waiting for `totalClicks` to increase
+- [ ] `GET /{hash}` returns **307** with `Location` = target while the broker is down
+- [ ] After the broker is back, `GET /api/stats/{hash}` shows `totalClicks` 1 for that redirect, with no manual replay
+
+#### Both replicas
+
+- [ ] The same `eventId` leaves `totalClicks` at 1, including when the redirect and the stats read hit different replicas
+
+#### Events
+
+- [ ] One redirect increases `totalClicks` by 1. Delivering the same `eventId` twice leaves the count unchanged
