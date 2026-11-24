@@ -42,14 +42,14 @@ class HttpOpenGraphClient(
         } catch (ex: OpenGraphFetchException) {
             throw ex
         } catch (ex: HttpTimeoutException) {
-            fail(target, ex)
+            throw OpenGraphFetchException(target, ex)
         } catch (ex: IOException) {
-            fail(target, ex)
+            throw OpenGraphFetchException(target, ex)
         } catch (ex: InterruptedException) {
             Thread.currentThread().interrupt()
-            fail(target, ex)
+            throw OpenGraphFetchException(target, ex)
         } catch (ex: IllegalArgumentException) {
-            fail(target, ex)
+            throw OpenGraphFetchException(target, ex)
         }
 
     private fun requestMetadata(target: String): OpenGraphMetadata {
@@ -62,7 +62,7 @@ class HttpOpenGraphClient(
         val response = http.send(request, HttpResponse.BodyHandlers.ofInputStream())
         if (response.statusCode() >= 400) {
             response.body().close()
-            fail(target)
+            throw OpenGraphFetchException(target)
         }
         val html = response.body().use { readLimited(target, it) }
         return parser.parse(html)
@@ -79,16 +79,11 @@ class HttpOpenGraphClient(
             val read = body.read(chunk)
             if (read < 0) break
             total += read
-            if (total > MAX_BODY_BYTES) fail(target)
+            if (total > MAX_BODY_BYTES) throw OpenGraphFetchException(target)
             buffer.write(chunk, 0, read)
         }
         return buffer.toString(Charsets.UTF_8)
     }
-
-    private fun fail(
-        target: String,
-        cause: Exception? = null,
-    ): Nothing = throw OpenGraphFetchException(target, cause)
 
     private companion object {
         val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(2)

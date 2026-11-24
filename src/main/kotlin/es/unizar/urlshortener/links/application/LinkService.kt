@@ -38,6 +38,7 @@ class LinkService(
         val target =
             redirectCache.findTarget(hash).orElseGet {
                 val shortUrl = store.findByHash(hash).orElseThrow { LinkNotFoundException(hash) }
+                if (!shortUrl.active) throw LinkGoneException(hash)
                 redirectCache.putTarget(hash, shortUrl.target)
                 shortUrl.target
             }
@@ -50,7 +51,7 @@ class LinkService(
         when (store.deactivate(hash)) {
             DeactivationOutcome.DEACTIVATED ->
                 events.publishEvent(ShortUrlUpdatedEvent(hash = hash, active = false))
-            DeactivationOutcome.ALREADY_DEACTIVATED -> Unit
+            DeactivationOutcome.ALREADY_DEACTIVATED -> redirectCache.evict(hash)
             DeactivationOutcome.NOT_FOUND -> throw LinkNotFoundException(hash)
         }
     }

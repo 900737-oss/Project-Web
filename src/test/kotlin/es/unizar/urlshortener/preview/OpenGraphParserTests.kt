@@ -44,4 +44,23 @@ class OpenGraphParserTests {
         assertNull(metadata.image)
         assertNull(metadata.url)
     }
+
+    @Test
+    fun `blank open graph values fall back to the document title`() {
+        val html =
+            """
+            <html><head>
+              <title>Fallback story</title>
+              <meta property="og:title" content=" ">
+              <meta property="og:image" content="">
+              <meta property="og:url" content=" ">
+            </head></html>
+            """.trimIndent()
+
+        val metadata = parser.parse(html)
+
+        assertEquals("Fallback story", metadata.title)
+        assertNull(metadata.image)
+        assertNull(metadata.url)
+    }
 }
