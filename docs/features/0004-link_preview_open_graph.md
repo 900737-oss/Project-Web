@@ -29,6 +29,7 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 - [x] If the target cannot be read, the preview reaches `FAILED` while `GET /{hash}` continues to return **307** with `Location` equal to the target URL. — `LinkPreviewBrokerTests`.
 - [x] Delivering the same `ShortUrlCreatedEvent` again does not insert a second pending row; the new request event is published by `links` when it creates the short URL. — `LinkPreviewOnCreatedTests`.
 - [x] `GET /api/preview/{hash}` returns **404** Problem Details (`type`, `title`, `status`, `detail`, `instance`) when no row exists. — `LinkPreviewHttpTests`.
+- [x] After processing, querying `GET /api/preview/{hash}` directly on either Compose replica returns identical JSON for the same hash. — `scripts/test-preview-replicas.ps1`.
 - [x] `GET /api/preview/{hash}` returns **200** with `status` `PENDING`, `READY`, or `FAILED` when that row exists. A `READY` response includes the available metadata; `image` may be `null` when the target page has no Open Graph image. — `LinkPreviewHttpTests`, Compose broker run.
 - [x] HTML that contains `og:title`, `og:image`, and `og:url` fills those fields. When Open Graph title or image metadata is missing, the document `<title>` is used when available and the image remains `null`; a page with a document title and no `og:image` can reach `READY`. — `OpenGraphParserTests`, `FetchLinkPreviewTests`.
 - [x] A fetch failure sets the row to `FAILED`; redelivery for the same hash leaves it `FAILED` without calling the fetch client again. After repeated target failures, the circuit breaker also stops further HTTP calls. — `OpenGraphClientTests`, `FetchLinkPreviewTests`.
@@ -37,11 +38,18 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 
 ### Scale evidence
 
-Level 4: `links` publishes a new event (`LinkPreviewRequestedEvent`) consumed by `preview` through RabbitMQ after commit. The test below verifies the full event path; the historical Compose run predates the current event ownership change.
+Level 4: `links` publishes a new event (`LinkPreviewRequestedEvent`) consumed by `preview` through RabbitMQ after commit. `LinkPreviewBrokerTests` verifies the event path, and the current Compose check verifies shared preview data across both replicas.
 
 1. `LinkPreviewBrokerTests` creates a URL through `CreateShortUrl`, verifies `links` publishes the event, and waits for the Rabbit consumer in `preview` to store `READY` metadata.
-2. A previous Compose run demonstrated cross-replica delivery, but used the earlier event publisher and optional broker profile; it is not current runtime evidence for the new default stack.
-3. Current clean-checkout Compose startup remains unverified in this Codespace because bridge TCP connections to the database timed out.
+2. `scripts/test-preview-replicas.ps1` creates a link through `app1` with an unreachable local target, polls until a terminal status, and compares the preview fields returned directly by `app1` and `app2`. It passed with both replicas returning the same `FAILED` JSON.
+3. `docker compose up --build -d` built the current application images and both replicas became healthy. A clean-checkout run has not been independently verified.
+
+To reproduce the cross-replica check from PowerShell at the project root:
+
+```powershell
+docker compose up --build -d
+.\scripts\test-preview-replicas.ps1
+```
 
 ### Qualities
 
