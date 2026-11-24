@@ -20,6 +20,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.context.ActiveProfiles
 import tools.jackson.databind.json.JsonMapper
@@ -117,15 +118,19 @@ class LinkPreviewBrokerTests {
                         .string(HttpHeaders.LOCATION, target),
                 )
 
-            assertEquals(LinkPreviewStatus.PENDING, getLinkPreview.findByHash(hash)?.status)
+            mockMvc
+                .perform(get("/api/preview/$hash"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("PENDING"))
         } finally {
             allowFetchToFail.countDown()
         }
 
+        val hash = jsonMapper.readTree(creation.get().response.contentAsString).get("hash").asText()
         await().atMost(Duration.ofSeconds(20)).until {
-            val response = creation.get().response.contentAsString
-            val hash = jsonMapper.readTree(response).get("hash").asText()
-            getLinkPreview.findByHash(hash)?.status == LinkPreviewStatus.FAILED
+            val previewResponse = mockMvc.perform(get("/api/preview/$hash")).andReturn().response
+            previewResponse.status == 200 &&
+                jsonMapper.readTree(previewResponse.contentAsString).get("status").toString() == "\"FAILED\""
         }
         http.stop(0)
     }

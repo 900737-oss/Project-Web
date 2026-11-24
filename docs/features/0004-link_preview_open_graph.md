@@ -25,6 +25,7 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 ### Acceptance criteria
 
 - [x] `POST /api/link` returns **201** with `Location` and JSON `url` + `hash` without waiting for the metadata fetch; the `ShortUrlCreatedEvent` listener stores one `link_preview` row in `PENDING`. — `LinkPreviewOnCreatedTests`, `LinkPreviewBrokerTests`.
+- [x] `GET /api/preview/{hash}` returns `PENDING` while the broker fetch is in progress, then polling reaches `FAILED` for an unreadable target within **20 seconds**. — `LinkPreviewBrokerTests`.
 - [x] If the target cannot be read, the preview reaches `FAILED` while `GET /{hash}` continues to return **307** with `Location` equal to the target URL. — `LinkPreviewBrokerTests`.
 - [x] Delivering the same `ShortUrlCreatedEvent` again does not insert a second pending row; the new request event is published by `links` when it creates the short URL. — `LinkPreviewOnCreatedTests`.
 - [x] `GET /api/preview/{hash}` returns **404** Problem Details (`type`, `title`, `status`, `detail`, `instance`) when no row exists. — `LinkPreviewHttpTests`.
