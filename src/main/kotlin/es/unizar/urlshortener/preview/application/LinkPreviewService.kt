@@ -33,7 +33,7 @@ class LinkPreviewService(
     ) {
         store.insertPending(hash, target)
         val current = store.findByHash(hash) ?: return
-        if (current.status == LinkPreviewStatus.READY) return
+        if (current.status != LinkPreviewStatus.PENDING) return
         try {
             val metadata = client.fetch(target)
             store.save(

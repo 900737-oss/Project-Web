@@ -58,7 +58,7 @@ fun interface GetLinkPreview {
 fun interface FetchLinkPreview {
     /**
      * Downloads [target] and stores the result for [hash].
-     * A row that is already [LinkPreviewStatus.READY] is left unchanged.
+     * Rows already in [LinkPreviewStatus.READY] or [LinkPreviewStatus.FAILED] are terminal and left unchanged.
      */
     fun fetch(
         hash: String,

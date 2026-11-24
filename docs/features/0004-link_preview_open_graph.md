@@ -30,7 +30,7 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 - [x] `GET /api/preview/{hash}` returns **404** Problem Details (`type`, `title`, `status`, `detail`, `instance`) when no row exists. — `LinkPreviewHttpTests`.
 - [x] `GET /api/preview/{hash}` returns **200** with `status` `PENDING`, `READY`, or `FAILED` when that row exists. A `READY` response includes the available metadata; `image` may be `null` when the target page has no Open Graph image. — `LinkPreviewHttpTests`, Compose broker run.
 - [x] HTML that contains `og:title`, `og:image`, and `og:url` fills those fields. When Open Graph title or image metadata is missing, the document `<title>` is used when available and the image remains `null`; a page with a document title and no `og:image` can reach `READY`. — `OpenGraphParserTests`, `FetchLinkPreviewTests`.
-- [x] Repeated failures of the target site set the row to `FAILED` and the circuit breaker stops calling that target. — `OpenGraphClientTests`, `FetchLinkPreviewTests`.
+- [x] A fetch failure sets the row to `FAILED`; redelivery for the same hash leaves it `FAILED` without calling the fetch client again. After repeated target failures, the circuit breaker also stops further HTTP calls. — `OpenGraphClientTests`, `FetchLinkPreviewTests`.
 - [x] A `LinkPreviewRequestedEvent` published by `links` is delivered through RabbitMQ to `preview`, whose consumer fetches and stores metadata. — `LinkPreviewBrokerTests`.
 - [ ] `docker compose up --build` starts all services from a clean checkout. The current Codespace Docker bridge timed out between containers during verification.
 

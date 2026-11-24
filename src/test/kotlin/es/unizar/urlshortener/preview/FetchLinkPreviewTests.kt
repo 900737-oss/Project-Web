@@ -68,6 +68,18 @@ class FetchLinkPreviewTests {
     }
 
     @Test
+    fun `a failed preview is not fetched again when the request is redelivered`() {
+        store.insertPending("failed-once", "https://example.com/story")
+        client.fail = true
+
+        fetch.fetch("failed-once", "https://example.com/story")
+        fetch.fetch("failed-once", "https://example.com/story")
+
+        assertEquals(LinkPreviewStatus.FAILED, store.findByHash("failed-once")?.status)
+        assertEquals(1, client.calls)
+    }
+
+    @Test
     fun `a ready row is not fetched again`() {
         store.save(
             LinkPreview(
