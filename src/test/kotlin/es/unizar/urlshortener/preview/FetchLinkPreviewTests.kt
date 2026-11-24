@@ -8,6 +8,7 @@ import es.unizar.urlshortener.preview.application.LinkPreviewStore
 import es.unizar.urlshortener.preview.application.OpenGraphClient
 import es.unizar.urlshortener.preview.application.OpenGraphFetchException
 import es.unizar.urlshortener.preview.application.OpenGraphMetadata
+import es.unizar.urlshortener.preview.adapters.fetch.JsoupOpenGraphParser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -34,6 +35,22 @@ class FetchLinkPreviewTests {
         assertEquals("https://example.com/story", stored?.url)
         assertNull(stored?.detail)
         assertEquals(1, client.calls)
+    }
+
+    @Test
+    fun `a page without an open graph image is ready with its document title`() {
+        val html = "<html><head><title>Page title</title></head></html>"
+        val parser = JsoupOpenGraphParser()
+        val htmlClient = OpenGraphClient { parser.parse(html) }
+        val htmlFetch = LinkPreviewService(store, htmlClient)
+        store.insertPending("no-image", "https://example.com/no-image")
+
+        htmlFetch.fetch("no-image", "https://example.com/no-image")
+
+        val stored = store.findByHash("no-image")
+        assertEquals(LinkPreviewStatus.READY, stored?.status)
+        assertEquals("Page title", stored?.title)
+        assertNull(stored?.image)
     }
 
     @Test
