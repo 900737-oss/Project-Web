@@ -27,6 +27,9 @@ urlshortener:
     token: ${URLSHORTENER_ADMIN_TOKEN:}
   links:
     redirect-cache-ttl: 1h
+  clicks:
+    # reintento periódico del outbox Modulith (perfil broker) tras caídas de Rabbit
+    incomplete-publication-resubmit-delay-ms: 5000
   analytics:
     processed-click-retention: 7d
     processed-click-prune-cron: "0 0 3 * * *"
@@ -75,6 +78,7 @@ spring:
       externalization:
         enabled: true
         serialize-externalization: true
+      republish-outstanding-events-on-restart: true
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:rabbit}
     port: 5672
