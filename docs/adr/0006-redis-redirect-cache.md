@@ -1,4 +1,4 @@
-# ADR 0004: Shared Redis redirect cache and invalidation
+# ADR 0006: Shared Redis redirect cache and invalidation
 
 - **Status:** Accepted
 - **Date:** 2026-10-03

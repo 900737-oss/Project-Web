@@ -11,21 +11,22 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.MvcResult
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import org.springframework.test.context.ActiveProfiles
-import tools.jackson.databind.json.JsonMapper
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.rabbitmq.RabbitMQContainer
+import tools.jackson.databind.json.JsonMapper
 import java.net.InetSocketAddress
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
@@ -75,64 +76,79 @@ class LinkPreviewBrokerTests {
 
     @Test
     fun `a failed preview does not delay link creation or break redirection`() {
-        val fetchStarted = CountDownLatch(1)
-        val allowFetchToFail = CountDownLatch(1)
-        val http = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        http.createContext("/") { exchange ->
-            fetchStarted.countDown()
-            allowFetchToFail.await(10, TimeUnit.SECONDS)
-            exchange.sendResponseHeaders(500, -1)
-            exchange.close()
+        val page = BlockedFailingPage()
+        val creation = createLinkAsynchronously(page.target)
+        try {
+            page.awaitFetchStarted()
+            val hash = assertLinkCreatedWithoutWaiting(creation)
+            assertRedirectsToTarget(hash, page.target)
+            assertPreviewIsPending(hash)
+        } finally {
+            page.allowFailure()
         }
-        http.start()
-        val target = "http://127.0.0.1:${http.address.port}/unreadable"
+
+        try {
+            val hash = jsonMapper.readTree(creation.get().response.contentAsString).get("hash").asText()
+            awaitPreviewFailed(hash)
+        } finally {
+            page.stop()
+        }
+    }
+
+    private fun createLinkAsynchronously(target: String): FutureTask<MvcResult> {
         val creation =
             FutureTask {
-                mockMvc
-                    .perform(
+                val result =
+                    mockMvc.perform(
                         post("/api/link")
                             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                             .param("url", target),
                     )
-                    .andReturn()
+                result.andReturn()
             }
         Thread(creation).start()
+        return creation
+    }
 
-        try {
-            assertEquals(true, fetchStarted.await(5, TimeUnit.SECONDS), "preview fetch did not start")
-            val created = creation.get(2, TimeUnit.SECONDS)
-            assertEquals(201, created.response.status)
-            val location = created.response.getHeader(HttpHeaders.LOCATION)
-            assertNotNull(location)
-            val responseJson = jsonMapper.readTree(created.response.contentAsString)
-            val hash = responseJson.get("hash").asText()
-            assertEquals(location, responseJson.get("url").asText())
-            assertEquals(hash, location!!.substringAfterLast('/'))
+    private fun assertLinkCreatedWithoutWaiting(creation: FutureTask<MvcResult>): String {
+        val created = creation.get(2, TimeUnit.SECONDS)
+        assertEquals(201, created.response.status)
+        val location = created.response.getHeader(HttpHeaders.LOCATION)
+        assertNotNull(location)
+        val responseJson = jsonMapper.readTree(created.response.contentAsString)
+        val hash = responseJson.get("hash").asText()
+        assertEquals(location, responseJson.get("url").asText())
+        assertEquals(hash, location!!.substringAfterLast('/'))
+        return hash
+    }
 
-            mockMvc
-                .perform(get("/$hash"))
-                .andExpect(status().isTemporaryRedirect)
-                .andExpect(
-                    org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .header()
-                        .string(HttpHeaders.LOCATION, target),
-                )
+    private fun assertRedirectsToTarget(
+        hash: String,
+        target: String,
+    ) {
+        mockMvc
+            .perform(get("/$hash"))
+            .andExpect(status().isTemporaryRedirect)
+            .andExpect(
+                org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                    .header()
+                    .string(HttpHeaders.LOCATION, target),
+            )
+    }
 
-            mockMvc
-                .perform(get("/api/preview/$hash"))
-                .andExpect(status().isOk)
-                .andExpect(jsonPath("$.status").value("PENDING"))
-        } finally {
-            allowFetchToFail.countDown()
-        }
+    private fun assertPreviewIsPending(hash: String) {
+        mockMvc
+            .perform(get("/api/preview/$hash"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("PENDING"))
+    }
 
-        val hash = jsonMapper.readTree(creation.get().response.contentAsString).get("hash").asText()
+    private fun awaitPreviewFailed(hash: String) {
         await().atMost(Duration.ofSeconds(20)).until {
             val previewResponse = mockMvc.perform(get("/api/preview/$hash")).andReturn().response
             previewResponse.status == 200 &&
                 jsonMapper.readTree(previewResponse.contentAsString).get("status").toString() == "\"FAILED\""
         }
-        http.stop(0)
     }
 
     private fun openGraphPage(): RunningPage {
@@ -158,6 +174,31 @@ class LinkPreviewBrokerTests {
         private val close: () -> Unit,
     ) {
         fun stop() = close()
+    }
+
+    private class BlockedFailingPage {
+        private val fetchStarted = CountDownLatch(1)
+        private val allowFetchToFail = CountDownLatch(1)
+        private val http = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        val target = "http://127.0.0.1:${http.address.port}/unreadable"
+
+        init {
+            http.createContext("/") { exchange ->
+                fetchStarted.countDown()
+                allowFetchToFail.await(10, TimeUnit.SECONDS)
+                exchange.sendResponseHeaders(500, -1)
+                exchange.close()
+            }
+            http.start()
+        }
+
+        fun awaitFetchStarted() {
+            assertEquals(true, fetchStarted.await(5, TimeUnit.SECONDS), "preview fetch did not start")
+        }
+
+        fun allowFailure() = allowFetchToFail.countDown()
+
+        fun stop() = http.stop(0)
     }
 }
 

@@ -28,5 +28,5 @@ Empty “we followed the seed” is not enough when you grow features or change 
 
 ## Recorded grown decisions
 
-- [0004](0004-redis-redirect-cache.md) — shared Redis redirect cache (feature 0006).
-- [0005](0005-link-preview-broker.md) — preview module and broker-backed fetch (feature 0004).
+- [0004](0004-link-preview-broker.md) — preview module and broker-backed fetch (feature 0004).
+- [0006](0006-redis-redirect-cache.md) — shared Redis redirect cache (feature 0006).

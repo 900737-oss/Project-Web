@@ -22,7 +22,7 @@ non-invalidating replica; TTL-only eviction doesn’t satisfy the Level 4 bar.
 
 ## Later (after the 2 October agreement)
 
-- **ADR:** [0004](../adr/0004-redis-redirect-cache.md)
+- **ADR:** [0006](../adr/0006-redis-redirect-cache.md)
 
 ### Acceptance criteria
 
@@ -55,7 +55,7 @@ Fill **Assessed** with the grade you claim; **How to test** must falsify that nu
 | --- | --- | --- |
 | **Correctness** | 5 | `LinkDeactivationTests` and `ShortUrlUpdatedBrokerTests`: token enforcement, idempotence, cache invalidation, and `analytics` reporting `active: false` after the durable broker delivers `ShortUrlUpdatedEvent`. |
 | **Scalability** | 2 | Two-replica Compose run, `docker compose up`, and k6 with 0 failed checks. |
-| **Engineering** | 1.5 | `./gradlew check` passed; ADR 0004 is filed and `ModularityTests` passed. |
+| **Engineering** | 1.5 | `./gradlew check` passed; ADR 0006 is filed and `ModularityTests` passed. |
 
 **Indicative total:** 8.5 / 10
 

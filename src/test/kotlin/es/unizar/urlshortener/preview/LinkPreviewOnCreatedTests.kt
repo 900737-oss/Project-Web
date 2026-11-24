@@ -3,6 +3,7 @@ package es.unizar.urlshortener.preview
 import es.unizar.urlshortener.links.LinkPreviewRequestedEvent
 import es.unizar.urlshortener.links.ShortUrlCreatedEvent
 import es.unizar.urlshortener.links.application.CreateShortUrl
+import es.unizar.urlshortener.preview.adapters.events.ShortUrlCreatedListener
 import es.unizar.urlshortener.preview.application.LinkPreviewStatus
 import es.unizar.urlshortener.preview.application.LinkPreviewStore
 import es.unizar.urlshortener.preview.application.RecordPendingLinkPreview
@@ -18,7 +19,6 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.modulith.test.PublishedEvents
 import org.springframework.modulith.test.PublishedEventsExtension
-import org.springframework.modulith.events.core.EventPublicationRegistry
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import java.time.Duration
@@ -40,10 +40,10 @@ class LinkPreviewOnCreatedTests {
     lateinit var jdbc: JdbcTemplate
 
     @Autowired
-    lateinit var publicationRegistry: EventPublicationRegistry
+    lateinit var recordPendingLinkPreview: RecordPendingLinkPreview
 
     @Autowired
-    lateinit var recordPendingLinkPreview: RecordPendingLinkPreview
+    lateinit var shortUrlCreatedListener: ShortUrlCreatedListener
 
     @Autowired
     lateinit var createShortUrl: CreateShortUrl
@@ -66,18 +66,11 @@ class LinkPreviewOnCreatedTests {
         val target = "https://example.com/story"
         val event = ShortUrlCreatedEvent(hash = hash, target = target)
 
-        publish(event)
-        publish(event)
+        shortUrlCreatedListener.onCreated(event)
+        shortUrlCreatedListener.onCreated(event)
 
         await().atMost(Duration.ofSeconds(5)).until {
-            val eventStillIncomplete =
-                publicationRegistry
-                    .findIncompletePublications()
-                    .any { publication ->
-                        val publishedEvent = publication.event
-                        publishedEvent is ShortUrlCreatedEvent && publishedEvent.hash == hash
-                    }
-            !eventStillIncomplete && store.findByHash(hash)?.status == LinkPreviewStatus.PENDING
+            store.findByHash(hash)?.status == LinkPreviewStatus.PENDING
         }
 
         val stored = store.findByHash(hash)

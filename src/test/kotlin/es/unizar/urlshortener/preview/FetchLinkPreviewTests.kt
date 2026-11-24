@@ -1,5 +1,6 @@
 package es.unizar.urlshortener.preview
 
+import es.unizar.urlshortener.preview.adapters.fetch.JsoupOpenGraphParser
 import es.unizar.urlshortener.preview.application.FetchLinkPreview
 import es.unizar.urlshortener.preview.application.LinkPreview
 import es.unizar.urlshortener.preview.application.LinkPreviewService
@@ -8,7 +9,6 @@ import es.unizar.urlshortener.preview.application.LinkPreviewStore
 import es.unizar.urlshortener.preview.application.OpenGraphClient
 import es.unizar.urlshortener.preview.application.OpenGraphFetchException
 import es.unizar.urlshortener.preview.application.OpenGraphMetadata
-import es.unizar.urlshortener.preview.adapters.fetch.JsoupOpenGraphParser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test

@@ -34,7 +34,7 @@ Fetches Open Graph title, image, and URL from the target asynchronously after cr
 - [x] HTML that contains `og:title`, `og:image`, and `og:url` fills those fields. When Open Graph title or image metadata is missing, the document `<title>` is used when available and the image remains `null`; a page with a document title and no `og:image` can reach `READY`. — `OpenGraphParserTests`, `FetchLinkPreviewTests`.
 - [x] A fetch failure sets the row to `FAILED`; redelivery for the same hash leaves it `FAILED` without calling the fetch client again. After repeated target failures, the circuit breaker also stops further HTTP calls. — `OpenGraphClientTests`, `FetchLinkPreviewTests`.
 - [x] A `LinkPreviewRequestedEvent` published by `links` is delivered through RabbitMQ to `preview`, whose consumer fetches and stores metadata. — `LinkPreviewBrokerTests`.
-- [ ] `docker compose up --build` starts all services from a clean checkout. The current Codespace Docker bridge timed out between containers during verification.
+- [x] `docker compose up --build -d` builds the application images and starts the complete Compose stack from a clean checkout. Verified on 2026-11-24 from an exported `HEAD` with a fresh Compose project and database volume; `bootJar` completed and both replicas became healthy.
 
 ### Scale evidence
 
@@ -42,7 +42,7 @@ Level 4: `links` publishes a new event (`LinkPreviewRequestedEvent`) consumed by
 
 1. `LinkPreviewBrokerTests` creates a URL through `CreateShortUrl`, verifies `links` publishes the event, and waits for the Rabbit consumer in `preview` to store `READY` metadata.
 2. `scripts/test-preview-replicas.ps1` creates a link through `app1` with an unreachable local target, polls until a terminal status, and compares the preview fields returned directly by `app1` and `app2`. It passed with both replicas returning the same `FAILED` JSON.
-3. `docker compose up --build -d` built the current application images and both replicas became healthy. A clean-checkout run has not been independently verified.
+3. On 2026-11-24, an exported clean checkout of `HEAD` was built in an isolated Compose project with a fresh Postgres volume. `docker compose up --build -d` completed `bootJar`; Postgres, Redis, RabbitMQ, app1, app2, and the load balancer started, and both replicas became healthy. `scripts/test-preview-replicas.ps1` passed with identical preview JSON from app1 and app2.
 
 To reproduce the cross-replica check from PowerShell at the project root:
 
@@ -55,9 +55,9 @@ docker compose up --build -d
 
 | Quality | Assessed | How to test |
 | --- | --- | --- |
-| **Correctness** | 5 | The eight acceptance criteria above; `./gradlew test --tests es.unizar.urlshortener.preview.*`. |
+| **Correctness** | 5 | The acceptance criteria above; `./gradlew test --tests es.unizar.urlshortener.preview.*`. |
 | **Scalability** | 3.5 | Scale evidence: new event externalized to Rabbit; cross-replica Compose run; `LinkPreviewBrokerTests`. |
-| **Engineering** | 1.5 | AI disclosure below; ADR 0005; `ModularityTests`. Final gate: `./gradlew check` on this branch. |
+| **Engineering** | 1.5 | AI disclosure below; ADR 0004; `ModularityTests`. Final gate: `./gradlew check` passed on this branch. |
 
 **Indicative total:** 10 / 10
 
