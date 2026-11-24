@@ -12,8 +12,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.modulith.events.IncompleteEventPublications
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -24,14 +24,17 @@ import org.testcontainers.rabbitmq.RabbitMQContainer
 import java.util.concurrent.TimeUnit
 
 /**
- * Con el broker caido el redirect sigue en 307, al volver, Modulith reenvia el click
- * desde el registro de publicaciones (sin repetir el GET a mano)
+ * Con el broker caido el redirect sigue en 307, al volver, el republisher periódico
+ * reenvía el ClickLoggedEvent incompleto (sin repetir el GET a mano)
  */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
 @ActiveProfiles("broker")
 @AutoConfigureMockMvc
 @Import(RabbitContainer::class)
+@TestPropertySource(
+    properties = ["urlshortener.clicks.incomplete-publication-resubmit-delay-ms=1000"],
+)
 class ClickBrokerDowntimeTests {
     @Autowired
     lateinit var mockMvc: MockMvc
@@ -41,9 +44,6 @@ class ClickBrokerDowntimeTests {
 
     @Autowired
     lateinit var rabbitTemplate: RabbitTemplate
-
-    @Autowired
-    lateinit var incompletePublications: IncompleteEventPublications
 
     @Autowired
     lateinit var jdbc: JdbcTemplate
@@ -69,9 +69,7 @@ class ClickBrokerDowntimeTests {
         }
 
         awaitRabbitPublishWorks()
-        incompletePublications.resubmitIncompletePublications { publication ->
-            publication.event is ClickLoggedEvent
-        }
+        // IncompleteClickLoggedRepublisher reenvía solos los eventos pendientes.
         awaitIngested(hash, clicks = 1)
     }
 
