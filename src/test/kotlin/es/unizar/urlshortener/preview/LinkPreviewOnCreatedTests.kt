@@ -3,6 +3,7 @@ package es.unizar.urlshortener.preview
 import es.unizar.urlshortener.links.LinkPreviewRequestedEvent
 import es.unizar.urlshortener.links.ShortUrlCreatedEvent
 import es.unizar.urlshortener.links.application.CreateShortUrl
+import es.unizar.urlshortener.preview.adapters.events.ShortUrlCreatedListener
 import es.unizar.urlshortener.preview.application.LinkPreviewStatus
 import es.unizar.urlshortener.preview.application.LinkPreviewStore
 import es.unizar.urlshortener.preview.application.RecordPendingLinkPreview
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.modulith.test.PublishedEvents
 import org.springframework.modulith.test.PublishedEventsExtension
 import org.springframework.transaction.PlatformTransactionManager
@@ -35,7 +37,13 @@ class LinkPreviewOnCreatedTests {
     lateinit var store: LinkPreviewStore
 
     @Autowired
+    lateinit var jdbc: JdbcTemplate
+
+    @Autowired
     lateinit var recordPendingLinkPreview: RecordPendingLinkPreview
+
+    @Autowired
+    lateinit var shortUrlCreatedListener: ShortUrlCreatedListener
 
     @Autowired
     lateinit var createShortUrl: CreateShortUrl
@@ -50,6 +58,26 @@ class LinkPreviewOnCreatedTests {
         }
 
         assertEquals("https://example.com/story", store.findByHash(hash)?.target)
+    }
+
+    @Test
+    fun `delivering the same created event twice stores only one pending preview`() {
+        val hash = "preview-redelivery-${UUID.randomUUID()}"
+        val target = "https://example.com/story"
+        val event = ShortUrlCreatedEvent(hash = hash, target = target)
+
+        shortUrlCreatedListener.onCreated(event)
+        shortUrlCreatedListener.onCreated(event)
+
+        await().atMost(Duration.ofSeconds(5)).until {
+            store.findByHash(hash)?.status == LinkPreviewStatus.PENDING
+        }
+
+        val stored = store.findByHash(hash)
+        val rowCount = jdbc.queryForObject("select count(*) from link_preview where hash = ?", Int::class.java, hash)
+        assertEquals(1, rowCount)
+        assertEquals(target, stored?.target)
+        assertEquals(LinkPreviewStatus.PENDING, stored?.status)
     }
 
     @Test

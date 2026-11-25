@@ -1,5 +1,6 @@
 package es.unizar.urlshortener.preview
 
+import es.unizar.urlshortener.preview.adapters.fetch.JsoupOpenGraphParser
 import es.unizar.urlshortener.preview.application.FetchLinkPreview
 import es.unizar.urlshortener.preview.application.LinkPreview
 import es.unizar.urlshortener.preview.application.LinkPreviewService
@@ -40,6 +41,22 @@ class FetchLinkPreviewTests {
     }
 
     @Test
+    fun `a page without an open graph image is ready with its document title`() {
+        val html = "<html><head><title>Page title</title></head></html>"
+        val parser = JsoupOpenGraphParser()
+        val htmlClient = OpenGraphClient { parser.parse(html) }
+        val htmlFetch = LinkPreviewService(store, htmlClient)
+        store.insertPending("no-image", "https://example.com/no-image")
+
+        htmlFetch.fetch("no-image", "https://example.com/no-image")
+
+        val stored = store.findByHash("no-image")
+        assertEquals(LinkPreviewStatus.READY, stored?.status)
+        assertEquals("Page title", stored?.title)
+        assertNull(stored?.image)
+    }
+
+    @Test
     fun `a failed fetch stores the failure and does not keep a title`() {
         store.insertPending("abc", "https://example.com/story")
         client.fail = true
@@ -50,6 +67,18 @@ class FetchLinkPreviewTests {
         assertEquals(LinkPreviewStatus.FAILED, stored?.status)
         assertEquals("Could not fetch https://example.com/story", stored?.detail)
         assertNull(stored?.title)
+        assertEquals(1, client.calls)
+    }
+
+    @Test
+    fun `a failed preview is not fetched again when the request is redelivered`() {
+        store.insertPending("failed-once", "https://example.com/story")
+        client.fail = true
+
+        fetch.fetch("failed-once", "https://example.com/story")
+        fetch.fetch("failed-once", "https://example.com/story")
+
+        assertEquals(LinkPreviewStatus.FAILED, store.findByHash("failed-once")?.status)
         assertEquals(1, client.calls)
     }
 
@@ -71,7 +100,7 @@ class FetchLinkPreviewTests {
     }
 
     @Test
-    fun `a successful retry replaces the failed status and clears its detail`() {
+    fun `a failed preview remains terminal when a later fetch arrives`() {
         store.save(
             LinkPreview(
                 hash = "abc",
@@ -84,10 +113,9 @@ class FetchLinkPreviewTests {
         fetch.fetch("abc", "https://example.com/story")
 
         val stored = store.findByHash("abc")
-        assertEquals(LinkPreviewStatus.READY, stored?.status)
-        assertEquals("Story", stored?.title)
-        assertNull(stored?.detail)
-        assertEquals(1, client.calls)
+        assertEquals(LinkPreviewStatus.FAILED, stored?.status)
+        assertEquals("Previous request timed out", stored?.detail)
+        assertEquals(0, client.calls)
     }
 
     @Test
