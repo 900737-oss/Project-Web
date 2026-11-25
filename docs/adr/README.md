@@ -30,3 +30,4 @@ Empty “we followed the seed” is not enough when you grow features or change 
 
 - [0004](0004-link-preview-broker.md) — preview module and broker-backed fetch (feature 0004).
 - [0006](0006-redis-redirect-cache.md) — shared Redis redirect cache (feature 0006).
+- [0008](0008-click-logged-broker.md) — externalize `ClickLoggedEvent` through RabbitMQ (feature 0008).
