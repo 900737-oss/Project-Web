@@ -10,6 +10,18 @@ When someone opens a short URL, `links` publishes a `ClickLoggedEvent` (the type
 
 The default Compose product starts RabbitMQ, and application replicas run with `docker,broker`. Other grown features already use Modulith `@Externalized` with queues that keep messages if a replica is down. If the same click is delivered twice, consumers must ignore the duplicate (`eventId`). If RabbitMQ is down, the user must still get a 307 redirect.
 
+## Modules and event
+
+| Role                    | Module      | Responsibility                                                                                                                       |
+| ----------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Publisher               | `links`     | Publishes `ClickLoggedEvent` from `LinkService.redirect` after a successful lookup                                                   |
+| Event owner / click log | `clicks`    | Owns `ClickLoggedEvent`, durable queue `urlshortener.clicks.click-logged` → `RecordClick`, in-process `ClickRecorder` when `!broker` |
+| Stats consumer          | `analytics` | Durable queue `urlshortener.analytics.click-logged` → update `LinkStats`; in-process `InProcessClickLoggedListener` when `!broker`   |
+
+**Event:** existing `clicks.ClickLoggedEvent` (`hash`, `occurredAt`, `eventId`) — not a new type.  
+**Broker:** RabbitMQ topic exchange `urlshortener.click-logged`, routing key `clicks.ClickLoggedEvent` (`@Externalized`).  
+**Libraries:** no new dependency, reuses Spring Modulith event publication + Spring AMQP already in the product stack.
+
 ## Decision
 
 1. Keep the current `ClickLoggedEvent` in the `clicks` package (`hash`, `occurredAt`, `eventId`). We do not create a second event just for the broker. Level 4 is about sending this event over RabbitMQ, not renaming it.
@@ -21,6 +33,17 @@ The default Compose product starts RabbitMQ, and application replicas run with `
 5. Keep the idempotency we already have ([ADR 0002](0002-atomic-upserts.md)): the same `eventId` is stored once in the click log and counted once in the stats.
 6. Do not add a new Modulith module. `clicks` owns the event type and the log, `analytics` owns the totals, and `links` keeps publishing. The hexagon rules and `ApplicationModules.verify()` must stay green.
 7. `bootRun` without the `broker` profile keeps the in-process path. The Compose product (`docker compose up`) runs apps with `docker,broker`, so clicks cross replicas through RabbitMQ by default.
+
+## Related tests
+
+| Test / script | What it proves for this ADR |
+| --- | --- |
+| `ClickInProcessIngestionTests` | `!broker`: 307 + stats still work in-process |
+| `ClickUnknownHashTests` | Unknown hash → 404; no click / stats bump |
+| `ClickLoggedBrokerTests` | Durable broker delivery; 307 without waiting for stats; same `eventId` ingested once |
+| `ClickBrokerDowntimeTests` | 307 while Rabbit is down; automatic outbox resubmit restores ingestion |
+| `scripts/test-async-click-ingestion.ps1` | Cross-replica Compose: redirect on `app1`, `totalClicks=1` on `app2` |
+| `ModularityTests` | Module boundaries and hexagonal rules stay green |
 
 ## Consequences
 

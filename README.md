@@ -8,12 +8,13 @@
 
 Day-to-day coding uses `./gradlew bootRun` (in-memory HSQLDB). Demo and grading use Compose:
 
-| Layer | Command |
-| --- | --- |
-| Product (Postgres + Redis + RabbitMQ + 2 app replicas + LB) | `docker compose up --build` → LB `http://localhost:8080` |
-| Load (same project) | `docker compose --profile load run --rm k6` or host `scripts/load.k6.js` |
-| Broker integration test | `./gradlew test --tests es.unizar.urlshortener.preview.LinkPreviewBrokerTests` |
-| All quality gates | `./gradlew check` |
+| Layer                                                       | Command                                                                                                                                                                                                                                |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product (Postgres + Redis + RabbitMQ + 2 app replicas + LB) | `docker compose up --build` → LB `http://localhost:8080`                                                                                                                                                                               |
+| Load (same project)                                         | `docker compose --profile load run --rm k6` or host `BASE_URL=http://localhost:8080 k6 run scripts/load.k6.js`                                                                                                                         |
+| Async click ingestion (0008)                                | With Compose up: `powershell -File .\scripts\test-async-click-ingestion.ps1` (redirect on `app1`, stats on `app2`)                                                                                                                     |
+| Broker integration tests                                    | `./gradlew test --tests es.unizar.urlshortener.preview.LinkPreviewBrokerTests` · `./gradlew test --tests es.unizar.urlshortener.clicks.ClickLoggedBrokerTests --tests es.unizar.urlshortener.clicks.ClickBrokerDowntimeTests` (Docker) |
+| All quality gates                                           | `./gradlew check`                                                                                                                                                                                                                      |
 
 ## Provided vs grown
 
@@ -38,7 +39,30 @@ Day-to-day coding uses `./gradlew bootRun` (in-memory HSQLDB). Demo and grading 
 - ADRs under [`docs/adr/`](docs/adr/README.md) when a choice locks a module, the broker, or a library ([`0000-TEMPLATE.md`](docs/adr/0000-TEMPLATE.md); seed [`0001`](docs/adr/0001-modulith-and-hexagon.md)).
 - Technologies beyond baseline HTTP, in distinct grown features: Call-Return, Event-Based, and Data Flow. Modulith events and the broker count toward architecture, not this slice. Web UI is not graded.
 - Defence packet: filled feature cards, ADR log, and a live Compose demo (create, redirect, stats).
-- Personal names, ownership, and the integration owner are in **`TEAM.md`** (see `TEAM.md.example`). That file is git-ignored and must not be committed, but must be included in the zip.
+- Personal names, ownership, and the integration owner are in `TEAM.md` (see `TEAM.md.example`). That file is git-ignored and must not be committed, but must be included in the zip.
+
+## Run / test / load (quick)
+
+```bash
+# Start (local, no Docker — in-process clicks; no Rabbit)
+./gradlew bootRun
+
+# Start (graded product — Postgres + Redis + RabbitMQ + app1/app2 + nginx)
+docker compose up --build -d --wait    # → http://localhost:8080
+
+# Tests
+./gradlew check                        # ktlint + detekt + test + JaCoCo
+./gradlew test --tests es.unizar.urlshortener.clicks.ClickLoggedBrokerTests \
+  --tests es.unizar.urlshortener.clicks.ClickBrokerDowntimeTests   # 0008 broker path (needs Docker)
+
+# Feature 0008 product check (Compose already up)
+powershell -File .\scripts\test-async-click-ingestion.ps1  
+
+# Load
+docker compose --profile load run --rm k6
+# or from the host:
+BASE_URL=http://localhost:8080 k6 run scripts/load.k6.js
+```
 
 ## Local dev (no Docker)
 
@@ -88,9 +112,9 @@ Defence packet: list ADRs + the command/test that proves each decision.
 
 - `links.ShortUrlCreatedEvent` (published by `links`) → `analytics` creates zeroed `LinkStats`; `preview` stores a pending preview
 - `links.LinkPreviewRequestedEvent` (published by `links`, externalized through RabbitMQ) → `preview` fetches and stores Open Graph metadata
-- `clicks.ClickLoggedEvent` (type in `clicks`; published by `links` on redirect) → `clicks` appends a log row; `analytics` increments `LinkStats`
+- `clicks.ClickLoggedEvent` (type in `clicks`; published by `links` on redirect) → `clicks` appends a log row; `analytics` increments `LinkStats`. With the Compose `broker` profile this event is **externalized** through RabbitMQ ([ADR 0008](docs/adr/0008-click-logged-broker.md); feature [0008](docs/features/0008-async_click_ingestion.md))
 
-In-process events do **not** cross replicas. The Compose product includes RabbitMQ so the preview request and link-update events can be delivered across replicas.
+In-process events do **not** cross replicas. The Compose product includes RabbitMQ so preview, link-update, and click-logged events can be delivered across replicas.
 
 ```mermaid
 flowchart LR

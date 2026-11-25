@@ -33,10 +33,25 @@ Registry; RabbitMQ; `@RabbitListener`; scheduled incomplete-publication resubmit
 
 ### Acceptance criteria
 
-- [x] `ClickLoggedEvent` is externalized to the broker after the redirect transaction commits. — `ClickLoggedBrokerTests`, Compose queues `urlshortener.clicks.click-logged` and `urlshortener.analytics.click-logged`.
-- [x] `GET /{hash}` still returns 307 when the broker is down. — `ClickBrokerDowntimeTests`, Compose stop/start of `rabbit`.
-- [x] A repeated `eventId` is ingested once by the click log and by the stats counter. — `ClickLoggedBrokerTests` redelivery case.
-- [x] Weight 21 is not met by the in-process listener alone. The event must travel through the durable broker. — broker profile + Rabbit path above.
+Team catalogue criteria and the instructor minimum common set, merged without
+duplicates:
+
+#### Success
+
+- [x] Without the broker profile, `GET /{hash}` returns **307** and `GET /api/stats/{hash}` still reports `totalClicks`. — `ClickInProcessIngestionTests`.
+- [x] An unknown hash returns **404** `ProblemDetails` and does not increase a count. — `ClickUnknownHashTests`.
+- [x] `GET /{hash}` returns **307** with `Location` = target without waiting for `totalClicks` to increase. — `ClickLoggedBrokerTests`.
+- [x] `GET /{hash}` returns **307** with `Location` = target while the broker is down. — `ClickBrokerDowntimeTests`; Compose stop of `rabbit`.
+- [x] After the broker is back, `GET /api/stats/{hash}` shows `totalClicks` 1 for that redirect, with no manual replay. — `ClickBrokerDowntimeTests`; `IncompleteClickLoggedRepublisher` in Compose.
+- [x] `ClickLoggedEvent` is externalized to the broker after the redirect transaction commits (weight 21 is not met by the in-process listener alone). — `ClickLoggedBrokerTests`; queues `urlshortener.clicks.click-logged` and `urlshortener.analytics.click-logged`.
+
+#### Both replicas
+
+- [x] The same `eventId` leaves `totalClicks` at 1, including when the redirect and the stats read hit different replicas. — `scripts/test-async-click-ingestion.ps1`.
+
+#### Events
+
+- [x] One redirect increases `totalClicks` by 1. Delivering the same `eventId` twice leaves the count unchanged (click log and stats). — `ClickLoggedBrokerTests` redelivery case.
 
 ### Verification commands
 
@@ -71,25 +86,3 @@ These are claimed grades supported by the verification recorded above.
 - **Tools / skills:** Cursor agent, Gemini
 - **Used for:** feature planning and development roadmap; explaining Modulith/Rabbit click ingestion and related design choices; assistance with complex technical implementation to work more efficiently; improving adr and feature card wording.
 - **Human-reviewed:** implementation, broker/outbox changes, tests, Compose verification and feature/adr documentation.
-
-## Course guidance (instructor)
-
-The acceptance criteria include the existing acceptance criteria that do not contradict the proposal.
-
-### Acceptance criteria (instructor)
-
-#### Success
-
-- [x] Without the broker profile, `GET /{hash}` returns **307** and `GET /api/stats/{hash}` still reports `totalClicks`
-- [x] An unknown hash returns **404** `ProblemDetails` and does not increase a count
-- [x] `GET /{hash}` returns **307** with `Location` = target without waiting for `totalClicks` to increase
-- [x] `GET /{hash}` returns **307** with `Location` = target while the broker is down
-- [x] After the broker is back, `GET /api/stats/{hash}` shows `totalClicks` 1 for that redirect, with no manual replay
-
-#### Both replicas
-
-- [x] The same `eventId` leaves `totalClicks` at 1, including when the redirect and the stats read hit different replicas
-
-#### Events
-
-- [x] One redirect increases `totalClicks` by 1. Delivering the same `eventId` twice leaves the count unchanged
